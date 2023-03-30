@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
+    <div class="topnav">
+        <a id=home href="home">Overview</a>
+        <a id=slide_view href="slide_view">Slide View</a>
+        <a id=wbc_view href="wbc_view">WBC View</a>
+        <a id=upload href="upload">Upload</a>
+    </div>
+    <script>
+      active = window.location.pathname.substring(1, window.location.pathname.length)
+      document.getElementById(active).className += "active"
+    </script>
+    <form id=slide_form method="GET">
+      <h1><label for="slide">Slide:</label> <input type="text" id="slide" name="slide"> <input type="submit" value="Submit"></h1>
+      <script>
+        slide_form = document.getElementById("slide_form")
+        slide_form.action = window.location.pathname
+        urlParams = new URLSearchParams(window.location.search);
+        slide_no = urlParams.get('slide');
+        document.getElementById("slide").value = slide_no
+
+        const slide = slide_no
+
+        if(slide_no != null) {
+          document.getElementById("home").href += "?slide="+slide_no
+          document.getElementById("slide_view").href += "?slide="+slide_no
+          document.getElementById("wbc_view").href += "?slide="+slide_no
+          document.getElementById("upload").href += "?slide="+slide_no
+        }
+      </script>
+    </form>
+  </head>
+  {% block content %}
+  {% endblock %}
+</html>

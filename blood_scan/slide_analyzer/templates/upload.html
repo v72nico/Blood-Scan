@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+{% block content %}
+
+<form id=upload_form action="/upload" method="POST" enctype="multipart/form-data">
+  <h3>Upload</h3>
+  {% csrf_token %}
+  {{ form.slide.label }} {{ form.slide }}
+  </br>
+  </br>
+  {{ form.file.label }} {{ form.file }}
+  </br>
+  </br>
+  <input type="submit" value="Submit">
+  {{ form.errors }}
+</form>
+
+{% endblock %}

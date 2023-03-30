@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+{% block content %}
+{% load static %}
+<head>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+  integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI="
+  crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+  <script src="{% static 'Leaflet.Editable.js' %}"></script>
+  <script>
+    var wbc_data = [];
+    {% for _, id, type, lat, lng, lat_lower, lng_lower, lat_upper, lng_upper in wbc_imgs %}
+      wbc_data.push([{{ id }}, {{ lat }}, {{ lng }}, '{{ type }}', {{ lat_lower }}, {{ lng_lower }}, {{ lat_upper }}, {{ lng_upper }}]);
+    {% endfor %}
+
+    var wbc_types = [];
+    {% for wbc_type, _, key_bind in wbc_types %}
+      wbc_types.push(["{{ wbc_type }}", {{ key_bind }}]);
+    {% endfor %}
+
+    var last_key_set = 'None'
+    document.addEventListener('keydown', key_handler);
+
+    function tab_select(ev){
+      if(ev.target.className != "active") {
+        ev.target.classList.add("active");
+        if(ev.target.id == "differential_tab"){
+          document.getElementById("morphology_tab").classList.remove("active");
+          document.getElementById("differential").style.display = "block";
+          document.getElementById("morphology").style.display = "none";
+        }
+        if(ev.target.id == "morphology_tab"){
+          document.getElementById("differential_tab").classList.remove("active");
+          document.getElementById("differential").style.display = "none";
+          document.getElementById("morphology").style.display = "block";
+        }
+      }
+    }
+
+    function morphology_select(ev) {
+      grade = ev.target.value
+      morphology = ev.target.name
+      if(grade == "present") {
+        if(ev.target.checked == false) {
+          grade = "not_present"
+        }
+      }
+      send_morphology(slide, morphology, grade)
+    }
+
+    function send_morphology(slide, morphology, grade) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?slide="+slide+"&morphology="+morphology+"&grade="+grade);
+      req.send();
+    }
+
+    function send_type(slide, id, type) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?slide="+slide+"&id="+id+"&type="+type);
+      req.send();
+    }
+
+    function send_key_bind(type, key_bind) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?type="+type+"&key_bind="+key_bind);
+      req.send();
+    }
+
+
+    function select_type(ev) {
+      cell_type = ev.target.name;
+      set_type(cell_type);
+    }
+
+    function set_type(cell_type) {
+      cell_id = document.getElementById('cell_toggle_counter').value;
+      send_type(slide, cell_id, cell_type);
+      var this_wbc_data
+      for (let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][0] == cell_id) {
+          this_wbc_data = wbc_data[i]
+        }
+      }
+      if(cell_type != this_wbc_data[3]) {
+        document.getElementById(cell_type).value = parseInt(document.getElementById(cell_type).value) + 1
+        if(this_wbc_data[3] != 'unsorted') {
+          document.getElementById(this_wbc_data[3]).value = parseInt(document.getElementById(this_wbc_data[3]).value) - 1
+        }
+        this_wbc_data[3] = cell_type
+        highlight_type(this_wbc_data)
+      }
+    }
+
+    function toggle_cell_manual(cell_id) {
+      if(wbc_data.length > 0) {
+        document.getElementById("cell_toggle_counter").value = cell_id
+        var this_wbc_data = wbc_data[cell_id]
+        pan_to_wbc(this_wbc_data)
+        highlight_type(this_wbc_data)
+      }
+    }
+
+    function toggle_cell(ev) {
+      var this_wbc_data
+      for (let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][0] == ev.target.value) {
+          this_wbc_data = wbc_data[i]
+        }
+      }
+      pan_to_wbc(this_wbc_data)
+      highlight_type(this_wbc_data)
+    }
+
+    function highlight_type(this_wbc_data) {
+      {% for wbc_type, _, _ in wbc_types %}
+        document.getElementById("{{ wbc_type }}").style.color = 'black';
+      {% endfor %}
+      if(this_wbc_data[3] != 'unsorted') {
+        document.getElementById(this_wbc_data[3]).style.color = 'red';
+      }
+    }
+
+    function pan_to_wbc(wbc_coordinates) {
+      map.panTo(new L.LatLng(wbc_coordinates[1], wbc_coordinates[2])); //-256, 256 bottom right
+    }
+
+    function set_key(ev) {
+      last_key_set = ev.target;
+    }
+
+    function key_handler(ev) {
+      if(last_key_set != 'None') {
+        cell_type = last_key_set.name;
+        for (let i = 0; i < wbc_types.length; i++) {
+          if(wbc_types[i][0] == cell_type) {
+            wbc_types[i][1] = ev.keyCode;
+            send_key_bind(cell_type, ev.keyCode)
+          }
+        }
+        last_key_set.value = ev.key;
+        last_key_set = 'None';
+      } else {
+        cell_type = 'None';
+        for (let i = 0; i < wbc_types.length; i++) {
+          if(wbc_types[i][1] == ev.keyCode) {
+            cell_type = wbc_types[i][0]
+          }
+        }
+        if(cell_type != 'None') {
+          cell_id = document.getElementById('cell_toggle_counter').value;
+          for (let i = 0; i < wbc_data.length; i++) {
+            if(wbc_data[i][0] == cell_id) {
+              set_type(cell_type);
+              if(parseInt(cell_id)+1 < wbc_data.length) {
+                toggle_cell_manual(parseInt(cell_id)+1)
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function add_wbc_recs() {
+      for(let i = 0; i < wbc_data.length; i++) {
+        var rec = new L.Rectangle([[wbc_data[i][4], wbc_data[i][5]], [wbc_data[i][6], wbc_data[i][7]]]).addTo(wbcLayer);
+      }
+    }
+
+    function deleteOn() {
+      var del = true
+      //console.log(this.map._controlContainer.innerHTML)
+    }
+
+    function makeWbcRectangle() {
+      var rec = map.editTools.startRectangle()
+      rec.addTo(wbcLayer)
+    }
+
+    function deleteWbc (e) {
+      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) this.editor.deleteShapeAt(e.latlng);
+    };
+
+    function make_controls() {
+      //STOLEN from demo
+      L.EditControl = L.Control.extend({
+          options: {
+              position: 'topleft',
+              callback: null,
+              kind: '',
+              html: ''
+          },
+          onAdd: function (map) {
+              var container = L.DomUtil.create('div', 'leaflet-control leaflet-bar'),
+                link = L.DomUtil.create('a', '', container);
+              link.href = '#';
+              link.title = this.options.title;
+              link.innerHTML = this.options.html;
+              L.DomEvent.on(link, 'click', L.DomEvent.stop)
+                .on(link, 'click', function () {
+                  window.LAYER = this.options.callback.call(map.editTools);
+                }, this);
+              return container;
+          }
+      });
+      L.NewWBCControl = L.EditControl.extend({
+          options: {
+              position: 'topleft',
+              callback: makeWbcRectangle,
+              kind: 'rectangle',
+              html: "<img src='/static/wbc.png' width=30 height=30>",
+              title: 'Add WBC',
+          }
+      });
+
+      return [L.NewWBCControl]
+    }
+
+  </script>
+</head>
+<body>
+  <h3>Slide View</h3>
+  <div class=container>
+    <div id="map">
+      <script>
+        var map = L.map('map', {editable: true, crs: L.CRS.Simple}).setView([-128, 128], 3);
+        L.tileLayer('/static/slide_{{slide}}/tiles/{z}.{y}.{x}.png', {
+        maxZoom: {{max_zoom}},
+        minZoom: 0,
+        }).addTo(map);
+        wbcLayer = new L.LayerGroup().addTo(map);
+        layerControl = L.control.layers({}, {}, {'collapsed': false}).addTo(map);
+        layerControl.addOverlay(wbcLayer , "WBC");
+
+        map.on('layeradd', function (e) {
+            if (e.layer instanceof L.Path) e.layer.on('click', L.DomEvent.stop).on('click', deleteWbc, e.layer);
+            if (e.layer instanceof L.Path) e.layer.on('dblclick', L.DomEvent.stop).on('dblclick', e.layer.toggleEdit);
+        });
+
+        controls = make_controls();
+        map.addControl(new controls[0]);
+        map.on('contextmenu', L.popup().setContent('<p>Hello world!<br />This is a nice popup.</p>'));
+
+        add_wbc_recs()
+      </script>
+    </div>
+    <div>
+      <div class="tabs">
+        <a id="morphology_tab" class=active onclick="tab_select(event)">Morphology</a>
+        <a id="differential_tab" onclick="tab_select(event)">Differential</a>
+      </div>
+      <br>
+      <div id="morphology">
+        {% for category in morphology_categories %}
+          <div class=parent_type> {{ category }} </div>
+            {% for morphology_type, this_category, quantitative in morphology_types %}
+              {% if this_category == category %}
+                {% if quantitative %}
+                  <div class=child_type>
+                    {{ morphology_type }}
+                    <input type="radio" id="3_{{ morphology_type }}" class="table_input" value="3" name="{{ morphology_type }}" oninput="morphology_select(event)"> <label for="3" class="table_input">3+</label>
+                    <input type="radio" id="2_{{ morphology_type }}" class="table_input" value="2" name="{{ morphology_type }}" oninput="morphology_select(event)"> <label for="2" class="table_input">2+</label>
+                    <input type="radio" id="1_{{ morphology_type }}" class="table_input" value="1" name="{{ morphology_type }}" oninput="morphology_select(event)"> <label for="1" class="table_input">1+</label>
+                    <input type="radio" id="0_{{ morphology_type }}" class="table_input" value="0" name="{{ morphology_type }}" checked=true oninput="morphology_select(event)"> <label for="0" class="table_input">0</label>
+                  </div>
+                  {% for morphology_value_type, morphology_value in slide_morphology %}
+                    {% if morphology_type == morphology_value_type %}
+                      <script>
+                        document.getElementById("{{ morphology_value }}_{{ morphology_type }}").checked = true
+                      </script>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <div class=child_type> {{ morphology_type }} <input type="checkbox" id="present_{{ morphology_type }}" class="table_input" value="present" name="{{ morphology_type }}" oninput="morphology_select(event)"> <label for="present" class="table_input">Present</label> </div>
+                  {% for morphology_value_type, morphology_value in slide_morphology %}
+                    {% if morphology_type == morphology_value_type %}
+                      <script>
+                        {% if morphology_value == "present" %}
+                          document.getElementById("present_{{ morphology_type }}").checked = true
+                        {% elif morphology_value == "not_present" %}
+                          document.getElementById("present_{{ morphology_type }}").checked = false
+                        {% endif %}
+                      </script>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+        {% endfor %}
+      </div>
+      <div id="differential">
+        <div class=cell_toggle> Cell: <input id="cell_toggle_counter" type="number" min="0" max={{ wbc_imgs|length|add:"-1" }} oninput="toggle_cell(event)"> </div>
+        {% for category in wbc_categories %}
+          <div class=parent_type> {{ category }} <input type="text" class="count_box" readonly="readonly"> </div>
+          {% for wbc_type, this_category, _ in wbc_types %}
+            {% if this_category == category %}
+              <div class=child_type>
+                {{ wbc_type }}
+                <div class=key_input> <input id="key_{{ wbc_type }}" name="{{ wbc_type }}" onclick="set_key(event)" type="submit" value="Key"> </div>
+                <input id="{{ wbc_type }}" type="text" value="0" class="count_box" readonly="readonly">
+                <input id="submit_{{ wbc_type }}" name="{{ wbc_type }}" onclick="select_type(event)" type="submit" value="Select" class="table_input">
+              </div>
+              {% for count_type, count in wbc_counts.items %}
+                {% if count_type == wbc_type %}
+                  <script>
+                    target = document.getElementById("{{ wbc_type }}")
+                    target.value = "{{ count }}"
+                  </script>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% for wbc_type, this_category, _ in wbc_types %}
+            {% if this_category == "None" %}
+              <div class=parent_type>
+                 {{ wbc_type }}
+                 <div class=key_input> <input id="key_{{ wbc_type }}" name="{{ wbc_type }}" onclick="set_key(event)" type="submit" value="Key"> </div>
+                 <input id="{{ wbc_type }}" type="text" value="0" class="count_box" readonly="readonly">
+                 <input id="submit_{{ wbc_type }}" name="{{ wbc_type }}" onclick="select_type(event)" type="submit" value="Select" class="table_input">
+              </div>
+              {% for count_type, count in wbc_counts.items %}
+                {% if count_type == wbc_type %}
+                  <script>
+                    target = document.getElementById("{{ wbc_type }}")
+                    target.value = "{{ count }}"
+                  </script>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <script>
+    //Startup script
+    toggle_cell_manual(0)
+    for (let i = 0; i < wbc_types.length; i++) {
+      if(wbc_types[i][1] != -1) {
+        document.getElementById('key_'+wbc_types[i][0]).value = String.fromCharCode(wbc_types[i][1])
+      }
+    }
+  </script>
+</body>
+{% endblock %}

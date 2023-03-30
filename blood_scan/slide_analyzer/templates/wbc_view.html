@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+{% block content %}
+<head>
+  <script>
+  const selectedImgs = []
+
+  function send_type(slide, id, type) {
+    const req = new XMLHttpRequest();
+    req.open("GET", "/wbc_view?slide="+slide+"&id="+id+"&type="+type);
+    req.send();
+  }
+
+  function allowDrop(ev) {
+    ev.preventDefault();
+  }
+
+  function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.id);
+  }
+
+  function drop(ev) {
+    if(selectedImgs.length == 0) {
+      this_data = ev.dataTransfer.getData("text");
+      this_img = document.getElementById(this_data);
+      selectedImgs.push(this_img);
+    }
+    for(let i = 0; i < selectedImgs.length; i++) {
+      img = selectedImgs[i];
+      data = img.id;
+      if(ev.target.tagName == 'DIV') {
+        var targetDiv = ev.target
+        } else {
+        var targetDiv = ev.target.parentNode
+      }
+      if(targetDiv.className == "cell_type"){
+        img.setAttribute("width", "20%");
+        img.setAttribute("height", "20%");
+      } else {
+        img.setAttribute("width", "30%");
+        img.setAttribute("height", "30%");
+      }
+      targetDiv.appendChild(img);
+      send_type(slide, data, targetDiv.id)
+      img.selected = "false"
+      img.style.filter = "hue-rotate(0deg)";
+    }
+    selectedImgs.splice(0, selectedImgs.length);
+  }
+
+  function isShiftClick(ev) {
+    if(window.event.shiftKey){
+      selectImg(ev);
+    } else {
+      zoom(ev)
+    }
+  }
+
+  function old_drop(ev) {
+    ev.preventDefault();
+    var data = ev.dataTransfer.getData("text");
+    var img = document.getElementById(data);
+    if(ev.target.tagName == 'DIV') {
+      var targetDiv = ev.target
+      } else {
+      var targetDiv = ev.target.parentNode
+    }
+    if(targetDiv.className == "cell_type"){
+      img.setAttribute("width", "20%");
+      img.setAttribute("height", "20%");
+    } else {
+      img.setAttribute("width", "30%");
+      img.setAttribute("height", "30%");
+    }
+    targetDiv.appendChild(img);
+    send_type("1", data, targetDiv.id)
+  }
+
+  function isShiftClick(ev) {
+    if(window.event.shiftKey){
+      selectImg(ev);
+    } else {
+      zoom(ev)
+    }
+  }
+
+  function selectImg(ev) {
+    img = ev.target
+    if(img.selected == "true"){
+      img.selected = "false"
+      index = selectedImgs.indexOf(img)
+      selectedImgs.splice(index, 1)
+      img.style.filter = "hue-rotate(0deg)";
+    } else {
+      img.selected = "true"
+      selectedImgs.push(img)
+      img.style.filter = "sepia(100%) hue-rotate(200deg) saturate(300%)";
+    }
+  }
+
+  function zoom(ev) {
+      var modal = document.getElementById('myModal');
+      var modalImg = document.getElementById("img01");
+      modal.style.display = "block";
+      modalImg.src = ev.target.src;
+  }
+
+  function zoomout(ev) {
+    var modalImg = document.getElementById("img01");
+    var modal = document.getElementById('myModal');
+    setTimeout(function() {
+        modal.style.display = "none";
+      }, 100);
+
+   }
+
+   function condense(ev) {
+     id = ev.target.alt;
+     box = document.getElementById(id);
+     if (box.style.display == "none") {
+       box.style.display = "block";
+       ev.target.style.transform = "rotate(90deg)";
+     } else {
+     box.style.display = "none";
+     ev.target.style.transform = "rotate(180deg)";
+     }
+   }
+
+  </script>
+</head>
+<body>
+  <h3>WBC View</h3>
+
+  <div class=sorted_cells>
+    {% for category in wbc_categories %}
+      <h2> {{ category }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt="{{ category }}_category"> </h2>
+      <div id="{{ category }}_category">
+       {% for wbc_type, this_category, _ in wbc_types %}
+        {% if this_category == category %}
+          <h4> {{ wbc_type }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt="{{ wbc_type }}"></h4>
+          <div id="{{ wbc_type }}" class="cell_type" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+    {% for wbc_type, this_category, _ in wbc_types %}
+        {% if this_category == "None" %}
+          <h2> {{ wbc_type }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt={{ wbc_type }}> </h2>
+          <div id={{ wbc_type }} class="cell_type" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        {% endif %}
+    {% endfor %}
+  </div>
+
+  <div id="unsorted" class="unsorted_cells" ondrop="drop(event)" ondragover="allowDrop(event)">
+    <br>
+    {% for x, y, z in wbc_imgs %}
+        <img class="cell_images" id="{{ y }}" src="{{ x }}" draggable="true" ondragstart="drag(event)" onclick="isShiftClick(event)" width="30%" height="30%">
+        <script type = "text/javascript">
+          function set_type() {
+            if("{{ z }}" != "unsorted") {
+               targetDiv = document.getElementById("{{ z }}");
+               img = document.getElementById("{{ y }}");
+               if(targetDiv.className == "cell_type"){
+                 img.setAttribute("width", "20%");
+                 img.setAttribute("height", "20%");
+               } else {
+                 img.setAttribute("width", "30%");
+                 img.setAttribute("height", "30%");
+               }
+               targetDiv.appendChild(img);
+            }
+          }
+          set_type()
+        </script>
+    {% endfor %}
+  </div>
+  <div id="myModal" class="modal" onclick="zoomout(event)">
+    <img id="img01">
+</body>
+{% endblock %}

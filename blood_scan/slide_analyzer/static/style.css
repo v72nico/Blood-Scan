@@ -1,0 +1,178 @@
+body {
+  font-family: 'Courier New', monospace;
+  text-align: center;
+}
+
+h1 {
+  font-size: 20px;
+  float: center;
+}
+
+h2 {
+  font-size: 25px;
+  color: Green;
+}
+
+h3 {
+  font-size: 18px;
+  color: grey;
+}
+
+h4 {
+  font-size: 20px;
+  color: lightgreen;
+}
+
+.tabs {
+  float: center;
+  padding: 20px;
+}
+
+.tabs a {
+  padding: 10px;
+  background-color: #c2c2c2;
+  cursor: pointer;
+}
+
+.tabs a:hover {
+  padding: 10px;
+  background-color: black;
+  color: white
+}
+
+.tabs a.active {
+  padding: 10px;
+  background-color: green;
+  color: white
+}
+
+.topnav {
+  float: center;
+  font-size: 10px;
+  line-height: 40pt;
+  margin-top: 40px;
+  margin-bottom: 50px;
+}
+
+.topnav a {
+  color: green;
+  text-align: center;
+  padding: 16px 16px;
+  text-decoration: none;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.topnav a:hover {
+  background-color: #c2c2c2;
+  color: black;
+}
+
+.topnav a.active {
+  background-color: green;
+  color: white;
+}
+
+.unsorted_cells {
+  width: 75%;
+  float: right;
+  min-height: 700px;
+}
+.sorted_cells {
+  overflow-y: auto;
+  height: 700px;
+  width: 25%;
+  float: left;
+}
+
+.triangle {
+  transform: rotate(90deg);
+}
+
+.cell_type {
+  padding: 10px;
+  border: 1px solid #aaaaaa;
+  }
+
+.cell_images {
+  cursor: pointer;
+}
+
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 99; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
+}
+
+#map {
+  height: 700px;
+  width: 80%;
+  float: left;
+}
+
+#differential {
+  display: flex;
+  flex-direction: column;
+  float: left;
+  display: none;
+  text-align: left;
+}
+
+#morphology {
+  display: flex;
+  flex-direction: column;
+  float: left;
+  width: 400px;
+}
+
+.container {
+  display: flex;
+  flex-direction: row;
+}
+
+.child_type {
+  border: 3px solid #aaaaaa;
+  margin-left: 20px;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.parent_type {
+  color: green;
+  border: 3px solid #aaaaaa;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.table_input {
+  float: right;
+}
+
+.count_box {
+  float: right;
+  width: 30px;
+}
+
+.key_input {
+  float: right;
+  padding-left: 10px;
+  width: 40px;
+}
+
+.radio_input {
+  color: red;
+  padding-left: 5px;
+}
+
+.cell_toggle {
+  padding: 10px;
+}
