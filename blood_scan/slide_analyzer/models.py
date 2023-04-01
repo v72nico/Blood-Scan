@@ -32,3 +32,4 @@ class Slide(models.Model):
     number = models.IntegerField()
     morphology = models.TextField()
     max_zoom = models.IntegerField()
+    coordinate_factors = models.CharField(max_length=100)

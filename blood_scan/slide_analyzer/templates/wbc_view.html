@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% extends "base.html" %}
 {% block content %}
+{% load static %}
 <head>
   <script>
   const selectedImgs = []
@@ -133,11 +134,11 @@
 
   <div class=sorted_cells>
     {% for category in wbc_categories %}
-      <h2> {{ category }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt="{{ category }}_category"> </h2>
+      <h2> {{ category }} <img class="triangle" src={% static 'triangle.png' %} height="10" onclick="condense(event)" alt="{{ category }}_category"> </h2>
       <div id="{{ category }}_category">
        {% for wbc_type, this_category, _ in wbc_types %}
         {% if this_category == category %}
-          <h4> {{ wbc_type }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt="{{ wbc_type }}"></h4>
+          <h4> {{ wbc_type }} <img class="triangle" src={% static 'triangle.png' %} height="10" onclick="condense(event)" alt="{{ wbc_type }}"></h4>
           <div id="{{ wbc_type }}" class="cell_type" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         {% endif %}
       {% endfor %}
@@ -145,7 +146,7 @@
     {% endfor %}
     {% for wbc_type, this_category, _ in wbc_types %}
         {% if this_category == "None" %}
-          <h2> {{ wbc_type }} <img class="triangle" src=static/triangle.png height="10" onclick="condense(event)" alt={{ wbc_type }}> </h2>
+          <h2> {{ wbc_type }} <img class="triangle" src={% static 'triangle.png' %} height="10" onclick="condense(event)" alt={{ wbc_type }}> </h2>
           <div id={{ wbc_type }} class="cell_type" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         {% endif %}
     {% endfor %}

@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.http import HttpRequest
 from slide_analyzer.models import *
 import os, shutil
-from slide_analyzer.utils import tile_image, identify_wbcs, get_tiles, generate_wbc_imgs, save_upload, calc_coordinate_factors
+from slide_analyzer.utils.utils import identify_wbcs, get_tiles, generate_wbc_imgs_and_cords, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
+from slide_analyzer.utils.tiling import tile_image
 from slide_analyzer.forms import UploadForm
 
 def home(request):
@@ -30,12 +31,14 @@ def make_slide_data(slide):
     _, coordinate_factors_full_res = tile_image(f'media/upload.png', slide, tile_size=2464, scale=0, save_loc='_id')
     coordinate_factors = calc_coordinate_factors(coordinate_factors_tiles, coordinate_factors_full_res)
 
-    thisSlide = Slide(number=slide, max_zoom=max_zoom)
+    cf_str = coordinate_factors_to_string(coordinate_factors)
+
+    thisSlide = Slide(number=slide, max_zoom=max_zoom, coordinate_factors=cf_str)
     thisSlide.save()
 
     identify_tiles = get_tiles(slide, '_id')
     identified_wbcs = identify_wbcs(slide, identify_tiles, save_loc='_id')
-    wbc_src_lst = generate_wbc_imgs(slide, identified_wbcs, coordinate_factors, save_loc='_id', tile_size=2464, tile_size_2=256)
+    wbc_src_lst = generate_wbc_imgs_and_cords(slide, identified_wbcs, coordinate_factors, save_loc='_id', tile_size=2464, tile_size_2=256)
     for wbc_src in wbc_src_lst:
         thisWBC = WBCImg(type="unsorted", slide=slide, imgID=wbc_src[1], src=wbc_src[0], lat=wbc_src[2][0], lng=wbc_src[2][1], lng_lower=wbc_src[2][2], lat_lower=wbc_src[2][3], lng_upper=wbc_src[2][4], lat_upper=wbc_src[2][5])
         thisWBC.save()
@@ -142,10 +145,12 @@ def add_wbc(request, slide):
     lat_upper = float(request.GET["lat_upper"])
     lng_lower = float(request.GET["lng_lower"])
     lng_upper = float(request.GET["lng_upper"])
-    print(lat_upper)
+    cf_str = Slide.objects.get(number=slide).coordinate_factors
+    coordinate_factors = string_to_coordinate_factors(cf_str)
+    add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper)
     lng = (lng_upper+lng_lower)/2
     lat = (lat_upper+lat_lower)/2
-    new_wbc = WBCImg(type='unsorted', src='', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
+    new_wbc = WBCImg(type='unsorted', src=f'media/slide_{slide}/wbcs/{img_id}.png', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
     new_wbc.save()
 
 def delete_wbc(request, slide):

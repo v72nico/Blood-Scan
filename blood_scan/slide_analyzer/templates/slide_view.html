@@ -340,7 +340,7 @@
               position: 'topleft',
               callback: makeWbcRectangle,
               kind: 'rectangle',
-              html: "<img src='/static/wbc.png' width=30 height=30>",
+              html: "<img src={% static 'wbc.png' %} width=30 height=30>",
               title: 'Add WBC',
           }
       });
@@ -422,9 +422,9 @@
       </div>
       <div id="differential">
         <div class=cell_toggle> Cell:
-          <input class="left_arrow" type="image" src="/static/triangle.png" length=15 width=15 onclick="leftArrow(event)" />
+          <input class="left_arrow" type="image" src={% static 'triangle.png' %} length=15 width=15 onclick="leftArrow(event)" />
           <input id="cell_toggle_counter" type="number" readonly="readonly" oninput="toggle_cell(event)">
-          <input class="right_arrow" type="image" src="/static/triangle.png" length=15 width=15 onclick="rightArrow(event)" />
+          <input class="right_arrow" type="image" src={% static 'triangle.png' %} length=15 width=15 onclick="rightArrow(event)" />
         </div>
         {% for category in wbc_categories %}
           <div class=parent_type> {{ category }} <input type="text" class="count_box" readonly="readonly"> </div>
