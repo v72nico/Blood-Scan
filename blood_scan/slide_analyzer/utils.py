@@ -73,7 +73,7 @@ def tile_core_img(img, layer, slide, tile_size, save_loc):
     x_len = int(len(img[0])/tile_size)
     for j in range(0,x_len):
         for l in range(0,y_len):
-            cv2.imwrite(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{layer}.{l}.{j}.png', img[tile_size*l:tile_size*l+tile_size, tile_size*j:tile_size*j+tile_size])
+            cv2.imwrite(f'media/slide_{slide}/tiles{save_loc}/{layer}.{l}.{j}.png', img[tile_size*l:tile_size*l+tile_size, tile_size*j:tile_size*j+tile_size])
 
 def tile_remainder_img(img, layer, slide, tile_size, save_loc):
     y_len = int(len(img)/tile_size)
@@ -86,27 +86,27 @@ def tile_remainder_img(img, layer, slide, tile_size, save_loc):
             final_tile = np.zeros((tile_size,tile_size,3), np.uint8)
             final_tile[:, :] = (0,0,0)
             final_tile[:this_tile.shape[0], :this_tile.shape[1]] = this_tile
-            cv2.imwrite(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{layer}.{y_len}.{j}.png', final_tile)
+            cv2.imwrite(f'media/slide_{slide}/tiles{save_loc}/{layer}.{y_len}.{j}.png', final_tile)
     if x_remainder > 0:
         for j in range(0, y_len):
             this_tile = img[tile_size*j:tile_size*j+tile_size, x_len*tile_size:x_len*tile_size+x_remainder]
             final_tile = np.zeros((tile_size,tile_size,3), np.uint8)
             final_tile[:, :] = (0,0,0)
             final_tile[:this_tile.shape[0], :this_tile.shape[1]] = this_tile
-            cv2.imwrite(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{layer}.{j}.{x_len}.png', final_tile)
+            cv2.imwrite(f'media/slide_{slide}/tiles{save_loc}/{layer}.{j}.{x_len}.png', final_tile)
     if x_remainder > 0 and y_remainder > 0:
         this_tile = img[y_len*tile_size:y_len*tile_size+y_remainder, x_len*tile_size:x_len*tile_size+x_remainder]
         final_tile = np.zeros((tile_size,tile_size,3), np.uint8)
         final_tile[:, :] = (0,0,0)
         final_tile[:this_tile.shape[0], :this_tile.shape[1]] = this_tile
-        cv2.imwrite(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{layer}.{y_len}.{x_len}.png', final_tile)
+        cv2.imwrite(f'media/slide_{slide}/tiles{save_loc}/{layer}.{y_len}.{x_len}.png', final_tile)
 
-def identify_wbcs(slide, imgs, save_loc='', confidence=0.5):
+def identify_wbcs(slide, imgs, save_loc='', confidence=0.3):
     #TODO scan for good areas of slide
     identified_wbcs = []
-    model = YOLO('slide_analyzer/static/best.pt')
+    model = YOLO('static/best.pt')
     for img in imgs:
-        results = model(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{img}')
+        results = model(f'media/slide_{slide}/tiles{save_loc}/{img}')
         boxes = []
         for box in results[0].boxes:
             if box.conf > confidence:
@@ -136,13 +136,13 @@ def generate_wbc_imgs(slide, identified_wbcs, coordinate_factors, save_loc='', t
                 upper_y_bound = int(wbc_xyxy[3].item()+margin)
                 if upper_y_bound > tile_size:
                     upper_y_bound = tile_size
-                img = cv2.imread(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}/{wbc_data[1]}')
+                img = cv2.imread(f'media/slide_{slide}/tiles{save_loc}/{wbc_data[1]}')
                 cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
-                cv2.imwrite(f'slide_analyzer/static/slide_{slide}/wbcs/{counter}.png', cropped_img)
+                cv2.imwrite(f'media/slide_{slide}/wbcs/{counter}.png', cropped_img)
 
                 coordinates = get_wbc_coordinates(wbc_xyxy, wbc_data[1], coordinate_factors, tile_size, tile_size_2)
 
-                src_lst.append([f'static/slide_{slide}/wbcs/{counter}.png', counter, coordinates])
+                src_lst.append([f'media/slide_{slide}/wbcs/{counter}.png', counter, coordinates])
                 counter += 1
     return src_lst
 
@@ -170,14 +170,14 @@ def get_wbc_coordinates(wbc, src, coordinate_factors, tile_size, tile_size_2):
 
 def get_tiles(slide, save_loc, zoom_target=0):
     identify_tiles = []
-    for tile in os.listdir(f'slide_analyzer/static/slide_{slide}/tiles{save_loc}'):
+    for tile in os.listdir(f'media/slide_{slide}/tiles{save_loc}'):
         if tile[:1] == str(zoom_target):
             identify_tiles.append(tile)
     print(identify_tiles)
     return identify_tiles
 
 def save_upload(f):
-    with open('slide_analyzer/static/upload/upload.png', 'wb+') as d:
+    with open('media/upload.png', 'wb+') as d:
         for chunk in f.chunks():
             d.write(chunk)
 

@@ -26,8 +26,8 @@ def upload(request):
 
 def make_slide_data(slide):
     make_slide_dirs(slide)
-    max_zoom, coordinate_factors_tiles = tile_image('slide_analyzer/static/upload/upload.png', slide)
-    _, coordinate_factors_full_res = tile_image(f'slide_analyzer/static/upload/upload.png', slide, tile_size=2464, scale=0, save_loc='_id')
+    max_zoom, coordinate_factors_tiles = tile_image('media/upload.png', slide)
+    _, coordinate_factors_full_res = tile_image(f'media/upload.png', slide, tile_size=2464, scale=0, save_loc='_id')
     coordinate_factors = calc_coordinate_factors(coordinate_factors_tiles, coordinate_factors_full_res)
 
     thisSlide = Slide(number=slide, max_zoom=max_zoom)
@@ -41,9 +41,9 @@ def make_slide_data(slide):
         thisWBC.save()
 
 def make_slide_dirs(slide):
-    os.makedirs(f'slide_analyzer/static/slide_{slide}/tiles')
-    os.makedirs(f'slide_analyzer/static/slide_{slide}/tiles_id')
-    os.makedirs(f'slide_analyzer/static/slide_{slide}/wbcs')
+    os.makedirs(f'media/slide_{slide}/tiles')
+    os.makedirs(f'media/slide_{slide}/tiles_id')
+    os.makedirs(f'media/slide_{slide}/wbcs')
 
 def wbc_view(request):
     slide = handle_query(request)
@@ -116,35 +116,66 @@ def handle_query(request):
         slide = request.GET["slide"]
     except:
         slide = None
-    if slide != None:
-        try:
-            img_id = request.GET["id"]
-            type = request.GET["type"]
-            item = WBCImg.objects.get(imgID=img_id, slide=slide)
-            item.type = type
-            item.save()
-        except:
-            pass
-        try:
-            morphology = request.GET["morphology"]
-            grade = request.GET["grade"]
-            item = Slide.objects.get(number=slide)
-            morphology_str = item.morphology
-            new_morphology_str = change_morphology_str(morphology_str, morphology, grade)
-            item.morphology = new_morphology_str
-            item.save()
-        except:
-            pass
     try:
-        key_bind = request.GET["key_bind"]
-        type = type = request.GET["type"]
-        slide = -1
-        item = WBCDiffConfig.objects.get(type=type)
-        item.key_bind = key_bind
-        item.save()
+        action = request.GET['action']
     except:
-        pass
+        action = None
+    if action != None:
+        handle_action(request, action, slide)
     return slide
+
+def handle_action(request, action, slide):
+    if action == 'morphology_update':
+        morphology_update(request, slide)
+    if action == 'type_update':
+        type_update(request, slide)
+    if action == 'key_update':
+        key_update(request)
+    if action == 'delete_wbc':
+        delete_wbc(request, slide)
+    if action == 'add_wbc':
+        add_wbc(request, slide)
+
+def add_wbc(request, slide):
+    img_id = request.GET["id"]
+    lat_lower = float(request.GET["lat_lower"])
+    lat_upper = float(request.GET["lat_upper"])
+    lng_lower = float(request.GET["lng_lower"])
+    lng_upper = float(request.GET["lng_upper"])
+    print(lat_upper)
+    lng = (lng_upper+lng_lower)/2
+    lat = (lat_upper+lat_lower)/2
+    new_wbc = WBCImg(type='unsorted', src='', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
+    new_wbc.save()
+
+def delete_wbc(request, slide):
+    img_id = request.GET["id"]
+    item = WBCImg.objects.get(imgID=img_id, slide=slide)
+    item.delete()
+
+def morphology_update(request, slide):
+    morphology = request.GET["morphology"]
+    grade = request.GET["grade"]
+    item = Slide.objects.get(number=slide)
+    morphology_str = item.morphology
+    new_morphology_str = change_morphology_str(morphology_str, morphology, grade)
+    item.morphology = new_morphology_str
+    item.save()
+
+def type_update(request, slide):
+    img_id = request.GET["id"]
+    type = request.GET["type"]
+    item = WBCImg.objects.get(imgID=img_id, slide=slide)
+    item.type = type
+    item.save()
+
+def key_update(request):
+    key_bind = request.GET["key_bind"]
+    type = type = request.GET["type"]
+    slide = -1
+    item = WBCDiffConfig.objects.get(type=type)
+    item.key_bind = key_bind
+    item.save()
 
 def change_morphology_str(morphology_str, morphology, grade):
     spot = morphology_str.find("|" + morphology + ":")

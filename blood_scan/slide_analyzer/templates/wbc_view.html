@@ -7,7 +7,7 @@
 
   function send_type(slide, id, type) {
     const req = new XMLHttpRequest();
-    req.open("GET", "/wbc_view?slide="+slide+"&id="+id+"&type="+type);
+    req.open("GET", "/wbc_view?slide="+slide+"&action=type_update&id="+id+"&type="+type);
     req.send();
   }
 

@@ -51,22 +51,33 @@
 
     function send_morphology(slide, morphology, grade) {
       const req = new XMLHttpRequest();
-      req.open("GET", "/wbc_view?slide="+slide+"&morphology="+morphology+"&grade="+grade);
+      req.open("GET", "/wbc_view?slide="+slide+"&action=morphology_update&morphology="+morphology+"&grade="+grade);
       req.send();
     }
 
     function send_type(slide, id, type) {
       const req = new XMLHttpRequest();
-      req.open("GET", "/wbc_view?slide="+slide+"&id="+id+"&type="+type);
+      req.open("GET", "/wbc_view?slide="+slide+"&action=type_update&id="+id+"&type="+type);
       req.send();
     }
 
     function send_key_bind(type, key_bind) {
       const req = new XMLHttpRequest();
-      req.open("GET", "/wbc_view?type="+type+"&key_bind="+key_bind);
+      req.open("GET", "/wbc_view?action=key_update&type="+type+"&key_bind="+key_bind);
       req.send();
     }
 
+    function sendDeleteWbc(slide, id) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?slide="+slide+"&action=delete_wbc&id="+id);
+      req.send();
+    }
+
+    function sendAddWbc(slide, imgID, latUpper, lngUpper, latLower, lngLower) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?slide="+slide+"&action=add_wbc&id="+imgID+"&lat_upper="+latUpper+"&lng_upper="+lngUpper+"&lat_lower="+latLower+"&lng_lower="+lngLower);
+      req.send();
+    }
 
     function select_type(ev) {
       cell_type = ev.target.name;
@@ -92,13 +103,65 @@
       }
     }
 
-    function toggle_cell_manual(cell_id) {
-      if(wbc_data.length > 0) {
-        document.getElementById("cell_toggle_counter").value = cell_id
-        var this_wbc_data = wbc_data[cell_id]
-        pan_to_wbc(this_wbc_data)
-        highlight_type(this_wbc_data)
+    function lowerCountOne(cellType) {
+      if(cellType != 'unsorted') {
+        document.getElementById(cellType).value = parseInt(document.getElementById(cellType).value) - 1
       }
+    }
+
+    function toggleCellManual(cell_id, pan) {
+      document.getElementById("cell_toggle_counter").value = cell_id
+      var this_wbc_data
+      for (let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][0] == cell_id) {
+          this_wbc_data = (wbc_data[i])
+          if(pan) {
+            pan_to_wbc(this_wbc_data)
+          }
+          highlight_type(this_wbc_data)
+        }
+      }
+    }
+
+    function changeToggle(pan) {
+      toggleCounter = document.getElementById("cell_toggle_counter")
+      toggleValue = toggleCounter.value
+      increaseWbcOne(pan)
+      if(toggleValue == toggleCounter.value) {
+        decreaseWbcOne(pan)
+        if(toggleValue == toggleCounter.value) {
+          toggleCellManual(-1, pan)
+        }
+      }
+    }
+
+
+    function increaseWbcOne(pan) {
+      toggle = document.getElementById('cell_toggle_counter')
+      for (let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][0] > toggle.value) {
+          toggleCellManual(wbc_data[i][0], pan)
+          break;
+        }
+      }
+    }
+
+    function decreaseWbcOne(pan) {
+      toggle = document.getElementById('cell_toggle_counter')
+      for (let i = wbc_data.length-1; i >= 0; i--) {
+        if(wbc_data[i][0] < toggle.value) {
+          toggleCellManual(wbc_data[i][0], pan)
+          break;
+        }
+      }
+    }
+
+    function rightArrow(ev) {
+      increaseWbcOne(true)
+    }
+
+    function leftArrow(ev) {
+      decreaseWbcOne(true)
     }
 
     function toggle_cell(ev) {
@@ -152,9 +215,7 @@
           for (let i = 0; i < wbc_data.length; i++) {
             if(wbc_data[i][0] == cell_id) {
               set_type(cell_type);
-              if(parseInt(cell_id)+1 < wbc_data.length) {
-                toggle_cell_manual(parseInt(cell_id)+1)
-              }
+              increaseWbcOne(true)
             }
           }
         }
@@ -169,16 +230,87 @@
 
     function deleteOn() {
       var del = true
-      //console.log(this.map._controlContainer.innerHTML)
     }
 
+    var recInProgress
+
     function makeWbcRectangle() {
-      var rec = map.editTools.startRectangle()
+      var rec = map.editTools.myStartRectangle()
+
       rec.addTo(wbcLayer)
+      recInProgress = rec
+      document.addEventListener("mouseup", finishWbcRectangle);
+    }
+
+    function finishWbcRectangle() {
+      finishedRec = recInProgress
+      recInProgress = ''
+      latUpper = finishedRec['_latlngs'][0][2]['lat']
+      lngUpper = finishedRec['_latlngs'][0][0]['lng']
+      latLower = finishedRec['_latlngs'][0][0]['lat']
+      lngLower = finishedRec['_latlngs'][0][2]['lng']
+      fixedLatLng = fixLatLng(latLower, lngLower, latUpper, lngUpper)
+      latLower = fixedLatLng[0]
+      lngLower = fixedLatLng[1]
+      latUpper = fixedLatLng[2]
+      lngUpper = fixedLatLng[3]
+
+      if(wbc_data.length != 0) {
+        topID = wbc_data[wbc_data.length-1][0]
+      } else {
+        topID = -1
+      }
+      lat = (latUpper+latLower)/2
+      lng = (lngUpper+lngLower)/2
+      //lats swapped because its used as id when deleting cell and on first add it gives lat lower instaed of lat upper NNO
+      wbc_data.push([topID+1, lat, lng, 'unsorted', latLower, lngLower, latUpper, lngUpper])
+      sendAddWbc(slide, topID+1, latUpper, lngUpper, latLower, lngLower)
+      document.removeEventListener("mouseup", finishWbcRectangle);
+    }
+
+    function fixLatLng(latLower, lngLower, latUpper, lngUpper) {
+      if(latUpper > latLower) {
+        newLatLower = latUpper
+        newLatUpper = latLower
+      } else {
+        newLatLower = latLower
+        newLatUpper = latUpper
+      }
+      if(lngUpper > lngLower) {
+        newlngLower = lngUpper
+        newlngUpper = lngLower
+      } else {
+        newlngLower = lngLower
+        newlngUpper = lngUpper
+      }
+      return [newLatLower, newlngLower, newLatUpper, newlngUpper]
     }
 
     function deleteWbc (e) {
-      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) this.editor.deleteShapeAt(e.latlng);
+      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) shape = this.editor.myShapeAt(e.latlng)
+      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) {
+        this.editor.deleteShapeAt(e.latlng);
+        var latUpper = shape[0]['lat']
+        if(shape[0]['lat'] < shape[2]['lat']) {
+          latUpper = shape[0]['lat']
+        } else {
+          latUpper = shape[2]['lat']
+        }
+        for(let i = 0; i < wbc_data.length; i++) {
+          if(wbc_data[i][6] == latUpper){
+            lowerCountOne(wbc_data[i][3])
+            sendDeleteWbc(slide, wbc_data[i][0])
+
+            toggle = document.getElementById('cell_toggle_counter')
+            if(parseInt(toggle.value) == wbc_data[i][0]){
+              changeToggle(false)
+            }
+
+            wbc_data.splice(i, 1)
+            break;
+          }
+        }
+      }
     };
 
     function make_controls() {
@@ -224,7 +356,7 @@
     <div id="map">
       <script>
         var map = L.map('map', {editable: true, crs: L.CRS.Simple}).setView([-128, 128], 3);
-        L.tileLayer('/static/slide_{{slide}}/tiles/{z}.{y}.{x}.png', {
+        L.tileLayer('{% get_media_prefix %}slide_{{slide}}/tiles/{z}.{y}.{x}.png', {
         maxZoom: {{max_zoom}},
         minZoom: 0,
         }).addTo(map);
@@ -289,7 +421,11 @@
         {% endfor %}
       </div>
       <div id="differential">
-        <div class=cell_toggle> Cell: <input id="cell_toggle_counter" type="number" min="0" max={{ wbc_imgs|length|add:"-1" }} oninput="toggle_cell(event)"> </div>
+        <div class=cell_toggle> Cell:
+          <input class="left_arrow" type="image" src="/static/triangle.png" length=15 width=15 onclick="leftArrow(event)" />
+          <input id="cell_toggle_counter" type="number" readonly="readonly" oninput="toggle_cell(event)">
+          <input class="right_arrow" type="image" src="/static/triangle.png" length=15 width=15 onclick="rightArrow(event)" />
+        </div>
         {% for category in wbc_categories %}
           <div class=parent_type> {{ category }} <input type="text" class="count_box" readonly="readonly"> </div>
           {% for wbc_type, this_category, _ in wbc_types %}
@@ -334,7 +470,7 @@
   </div>
   <script>
     //Startup script
-    toggle_cell_manual(0)
+    changeToggle(false)
     for (let i = 0; i < wbc_types.length; i++) {
       if(wbc_types[i][1] != -1) {
         document.getElementById('key_'+wbc_types[i][0]).value = String.fromCharCode(wbc_types[i][1])
