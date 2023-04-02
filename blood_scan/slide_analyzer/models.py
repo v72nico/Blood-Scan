@@ -21,7 +21,7 @@ class WBCImg(models.Model):
 class WBCDiffConfig(models.Model):
     type = models.CharField(max_length=50)
     parent = models.CharField(max_length=50)
-    key_bind = models.IntegerField()
+    key_bind = models.IntegerField(null=True)
 
 class MorphologyConfig(models.Model):
     type = models.CharField(max_length=50)

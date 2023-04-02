@@ -1,0 +1,366 @@
+[
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 1,
+    "fields": {
+      "type": "Monocytes",
+      "parent": "None"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 2,
+    "fields": {
+      "type": "Lymphocytes",
+      "parent": "Lymphocytes"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 3,
+    "fields": {
+      "type": "Variant Lymphocytes",
+      "parent": "Lymphocytes"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 4,
+    "fields": {
+      "type": "Segmented Neutrophils",
+      "parent": "Neutrophils"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 5,
+    "fields": {
+      "type": "Band Neutrophils",
+      "parent": "Neutrophils"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 6,
+    "fields": {
+      "type": "Promyleocytes",
+      "parent": "Immature Granulocytes"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 7,
+    "fields": {
+      "type": "Myleocytes",
+      "parent": "Immature Granulocytes"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 8,
+    "fields": {
+      "type": "Metamyleocytes",
+      "parent": "Immature Granulocytes"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 9,
+    "fields": {
+      "type": "NRBC",
+      "parent": "Other"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 10,
+    "fields": {
+      "type": "Smudge Cells",
+      "parent": "Other"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 11,
+    "fields": {
+      "type": "Other",
+      "parent": "Other"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 12,
+    "fields": {
+      "type": "Blasts",
+      "parent": "None"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 13,
+    "fields": {
+      "type": "Eosinophils",
+      "parent": "None"
+    }
+  },
+  {
+    "model": "slide_analyzer.WBCDiffConfig",
+    "pk": 14,
+    "fields": {
+      "type": "Basophils",
+      "parent": "None"
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 1,
+    "fields": {
+      "type": "Acanthocytosis",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 2,
+    "fields": {
+      "type": "Anisocytosis",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 3,
+    "fields": {
+      "type": "Spherocytes",
+      "parent": "RBC",
+      "quantitative": 1
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 4,
+    "fields": {
+      "type": "Schistocytes",
+      "parent": "RBC",
+      "quantitative": 1
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 5,
+    "fields": {
+      "type": "Target Cells",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 6,
+    "fields": {
+      "type": "Basophillic Stippling",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 7,
+    "fields": {
+      "type": "Howell-Jolly Bodies",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 8,
+    "fields": {
+      "type": "Pappenheimer Bodies",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 9,
+    "fields": {
+      "type": "Polychromasia",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 10,
+    "fields": {
+      "type": "Teardrop Cells",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 11,
+    "fields": {
+      "type": "Echinocytse",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 12,
+    "fields": {
+      "type": "Hypochromasia",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 13,
+    "fields": {
+      "type": "Macrocytes",
+      "parent": "RBC",
+      "quantitative": 1
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 14,
+    "fields": {
+      "type": "Microcytes",
+      "parent": "RBC",
+      "quantitative": 1
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 15,
+    "fields": {
+      "type": "Hypochromasia",
+      "parent": "RBC",
+      "quantitative": 1
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 16,
+    "fields": {
+      "type": "Sickle Cells",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 17,
+    "fields": {
+      "type": "Parasites",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 18,
+    "fields": {
+      "type": "Rouleaux",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 19,
+    "fields": {
+      "type": "Agglutination",
+      "parent": "RBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 20,
+    "fields": {
+      "type": "Dohle Bodies",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 21,
+    "fields": {
+      "type": "Toxic Granulation",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 22,
+    "fields": {
+      "type": "Smudge Cells",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 23,
+    "fields": {
+      "type": "Vaculated Neutrophils",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 24,
+    "fields": {
+      "type": "Hypogranulation",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 25,
+    "fields": {
+      "type": "Hypersegmentation",
+      "parent": "WBC",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 26,
+    "fields": {
+      "type": "Clumps",
+      "parent": "Platlet",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 27,
+    "fields": {
+      "type": "Giant Platlets",
+      "parent": "Platlet",
+      "quantitative": 0
+    }
+  },
+  {
+    "model": "slide_analyzer.MorphologyConfig",
+    "pk": 28,
+    "fields": {
+      "type": "Large Platlets",
+      "parent": "Platlet",
+      "quantitative": 0
+    }
+  }
+]

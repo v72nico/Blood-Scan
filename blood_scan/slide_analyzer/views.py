@@ -50,12 +50,13 @@ def make_slide_dirs(slide):
 
 def wbc_view(request):
     slide = handle_query(request)
-    wbc_data_lst = WBCImg.objects.filter(slide=slide)
-    wbc_img_lst = []
-    for i in range(0, len(wbc_data_lst)):
-        wbc_img_lst.append([wbc_data_lst[i].src, wbc_data_lst[i].imgID, wbc_data_lst[i].type])
     wbc_types_data = WBCDiffConfig.objects.all()
     wbc_types, wbc_categories = get_wbc_types(wbc_types_data)
+    wbc_img_lst = []
+    if slide != None and slide != '':
+        wbc_data_lst = WBCImg.objects.filter(slide=slide)
+        for i in range(0, len(wbc_data_lst)):
+            wbc_img_lst.append([wbc_data_lst[i].src, wbc_data_lst[i].imgID, wbc_data_lst[i].type])
     return render(request, 'wbc_view.html', {'wbc_imgs': wbc_img_lst, 'wbc_types': wbc_types, 'wbc_categories': wbc_categories})
 
 def slide_view(request):
@@ -90,7 +91,11 @@ def get_wbc_types(wbc_types_data):
     wbc_types = []
     wbc_categories = []
     for wbc_type in wbc_types_data:
-        wbc_types.append([wbc_type.type, wbc_type.parent, wbc_type.key_bind])
+        if wbc_type.key_bind == None:
+            this_key_bind = ''
+        else:
+            this_key_bind = wbc_type.key_bind
+        wbc_types.append([wbc_type.type, wbc_type.parent, this_key_bind])
         if wbc_type.parent != "None":
             if wbc_type.parent not in wbc_categories:
                 wbc_categories.append(wbc_type.parent)
