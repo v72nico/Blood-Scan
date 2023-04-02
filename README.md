@@ -12,7 +12,6 @@ Uncompleted Features:
 -Selecting new WBCs across tile borders
 -Preventing multiple selections on a single WBC
 
-
 Run with:
 python3 manage.py makemigrations
 python3 manage.py migrate
@@ -25,3 +24,13 @@ Set custom differential and morphology config
 -open slide_analyzer_morphologyconfig or slide_analyzer_wbcdiffconfig tables
 -Add the type and parent(category) the type is in
 -For RBC morphology if quantitative value of 0 is selected it will be graded as present or not present if 1 is selected it is graded from 0 to 3
+
+## Controls
+### Slide View
+-Scroll though wbc using arrows
+-Select new wbc using wbc symbol
+-Delete wbc by double clicking than controlling clicking the cell box
+-Set key for differential count by clicking the button next to then pressing the key
+-Select morphology findings using check boxes
+### WBC View
+-Drag WBC image into appropriate category
