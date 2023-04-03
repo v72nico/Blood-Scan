@@ -6,3 +6,4 @@ __pycache__
 db.sqlite3
 blood_scan/slide_analyzer/static/slide_*
 blood_scan/media/*
+!blood_scan/media/placeholder.txt

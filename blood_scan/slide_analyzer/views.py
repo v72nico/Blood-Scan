@@ -44,16 +44,19 @@ def make_slide_data(slide):
         thisWBC.save()
 
 def make_slide_dirs(slide):
-    os.makedirs(f'media/slide_{slide}/tiles')
-    os.makedirs(f'media/slide_{slide}/tiles_id')
-    os.makedirs(f'media/slide_{slide}/wbcs')
+    if os.path.isdir(f'media/slide_{slide}'):
+        shutil.rmtree(f'media/slide_{slide}')
+    os.mkdir(f'media/slide_{slide}')
+    os.mkdir(f'media/slide_{slide}/tiles')
+    os.mkdir(f'media/slide_{slide}/tiles_id')
+    os.mkdir(f'media/slide_{slide}/wbcs')
 
 def wbc_view(request):
     slide = handle_query(request)
     wbc_types_data = WBCDiffConfig.objects.all()
     wbc_types, wbc_categories = get_wbc_types(wbc_types_data)
     wbc_img_lst = []
-    if slide != None and slide != '':
+    if slide != None and slide != '' and slide != 'null':
         wbc_data_lst = WBCImg.objects.filter(slide=slide)
         for i in range(0, len(wbc_data_lst)):
             wbc_img_lst.append([wbc_data_lst[i].src, wbc_data_lst[i].imgID, wbc_data_lst[i].type])
@@ -72,7 +75,7 @@ def slide_view(request):
     wbc_img_lst = []
     max_zoom = 0
     slide_morphology = []
-    if slide != None and slide != '':
+    if slide != None and slide != '' and slide != 'null':
         wbc_img_data_lst = WBCImg.objects.filter(slide=slide)
         wbc_img_lst = []
         for i in range(0, len(wbc_img_data_lst)):
@@ -133,16 +136,17 @@ def handle_query(request):
     return slide
 
 def handle_action(request, action, slide):
-    if action == 'morphology_update':
-        morphology_update(request, slide)
-    if action == 'type_update':
-        type_update(request, slide)
     if action == 'key_update':
         key_update(request)
-    if action == 'delete_wbc':
-        delete_wbc(request, slide)
-    if action == 'add_wbc':
-        add_wbc(request, slide)
+    if slide != None and slide != '' and slide != 'null':
+        if action == 'morphology_update':
+            morphology_update(request, slide)
+        if action == 'type_update':
+            type_update(request, slide)
+        if action == 'delete_wbc':
+            delete_wbc(request, slide)
+        if action == 'add_wbc':
+            add_wbc(request, slide)
 
 def add_wbc(request, slide):
     img_id = request.GET["id"]
