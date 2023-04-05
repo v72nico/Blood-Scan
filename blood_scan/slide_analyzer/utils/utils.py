@@ -2,61 +2,52 @@ import cv2
 import os
 from ultralytics import YOLO
 
-def identify_wbcs(slide, imgs, save_loc='', confidence=0.3):
-    #TODO scan for good areas of slide
-    identified_wbcs = []
-    model = YOLO('slide_analyzer/static/best.pt')
-    for img in imgs:
-        results = model(f'media/slide_{slide}/tiles{save_loc}/{img}')
-        boxes = []
-        for box in results[0].boxes:
-            if box.conf > confidence:
-                boxes.append(box)
-        identified_wbcs.append([boxes, img])
-    return identified_wbcs
+class WbcImageHandler():
+    def __init__(self, slide, coordinate_factors, id_tile_size, view_tile_size, save_loc):
+        self.slide = slide
+        self.coordinate_factors = coordinate_factors
+        self.id_tile_size = id_tile_size
+        self.view_tile_size = view_tile_size
+        self.save_loc = save_loc
+        imgs = get_tiles(self.slide, self.save_loc)
+        wbc_id = WbcIdentificationHandler(self.slide, imgs, save_loc)
+        self.identified_wbcs = wbc_id.identify_wbcs()
 
-def generate_wbc_imgs_and_cords(slide, identified_wbcs, coordinate_factors, save_loc='', tile_size=256, tile_size_2=0):
-    #TODO find wbcs split between images
-    counter = 0
-    src_lst = []
-    for wbc_data in identified_wbcs:
-        wbc_lst = wbc_data[0]
-        if len(wbc_lst) > 0:
-            for wbc in wbc_lst:
-                wbc_xyxy = make_wbc_xyxy(wbc.xyxy[0])
-                generate_wbc_img(wbc_xyxy, wbc_data[1], slide, save_loc, counter, tile_size)
-                coordinates = get_wbc_coordinates(wbc_xyxy, wbc_data[1], coordinate_factors, tile_size, tile_size_2)
-                src_lst.append([f'media/slide_{slide}/wbcs/{counter}.png', counter, coordinates])
-                counter += 1
-    return src_lst
+    def generate_wbc_imgs_and_cords(self):
+        #TODO find wbcs split between images
+        counter = 0
+        final_wbcs = []
+        for wbc_data in self.identified_wbcs:
+            wbc_lst = wbc_data[0]
+            if len(wbc_lst) > 0:
+                for wbc in wbc_lst:
+                    wbc_xyxy = self.make_wbc_xyxy(wbc.xyxy[0])
+                    cropped_img = self.generate_wbc_img(wbc_xyxy, wbc_data[1], counter)
+                    self.save_img(cropped_img, counter)
+                    coordinates = self.get_wbc_coordinates(wbc_xyxy, wbc_data[1])
+                    final_wbcs.append([f'media/slide_{self.slide}/wbcs/{counter}.png', counter, coordinates])
+                    counter += 1
+        return final_wbcs
 
-def make_wbc_xyxy(xyxy_data):
-    wbc_xyxy = []
-    wbc_xyxy.append(xyxy_data[0].item())
-    wbc_xyxy.append(xyxy_data[1].item())
-    wbc_xyxy.append(xyxy_data[2].item())
-    wbc_xyxy.append(xyxy_data[3].item())
-    return wbc_xyxy
+    def generate_wbc_img(self, wbc_xyxy, img_src, counter):
+        margin = 20
+        lower_x_bound = int(wbc_xyxy[0]-margin)
+        if lower_x_bound < 0:
+            lower_x_bound = 0
+        lower_y_bound = int(wbc_xyxy[1]-margin)
+        if lower_y_bound < 0:
+            lower_y_bound = 0
+        upper_x_bound = int(wbc_xyxy[2]+margin)
+        if upper_x_bound > self.id_tile_size:
+            upper_x_bound = self.id_tile_size
+        upper_y_bound = int(wbc_xyxy[3]+margin)
+        if upper_y_bound > self.id_tile_size:
+            upper_y_bound = self.id_tile_size
+        img = cv2.imread(f'media/slide_{self.slide}/tiles{self.save_loc}/{img_src}')
+        cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
+        return cropped_img
 
-def generate_wbc_img(wbc_xyxy, img_src, slide, save_loc, counter, tile_size):
-    margin = 20
-    lower_x_bound = int(wbc_xyxy[0]-margin)
-    if lower_x_bound < 0:
-        lower_x_bound = 0
-    lower_y_bound = int(wbc_xyxy[1]-margin)
-    if lower_y_bound < 0:
-        lower_y_bound = 0
-    upper_x_bound = int(wbc_xyxy[2]+margin)
-    if upper_x_bound > tile_size:
-        upper_x_bound = tile_size
-    upper_y_bound = int(wbc_xyxy[3]+margin)
-    if upper_y_bound > tile_size:
-        upper_y_bound = tile_size
-    img = cv2.imread(f'media/slide_{slide}/tiles{save_loc}/{img_src}')
-    cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
-    cv2.imwrite(f'media/slide_{slide}/wbcs/{counter}.png', cropped_img)
-
-def get_wbc_coordinates(wbc_xyxy, src, coordinate_factors, tile_size, tile_size_2):
+    def get_wbc_coordinates(self, wbc_xyxy, src):
         lower_x_bound = int(wbc_xyxy[0])
         lower_y_bound = int(wbc_xyxy[1])
         upper_x_bound = int(wbc_xyxy[2])
@@ -69,14 +60,44 @@ def get_wbc_coordinates(wbc_xyxy, src, coordinate_factors, tile_size, tile_size_
         this_x = int(these_coordinates[2])
 
         #basically % way across id image is cords * factor which is ratio of percent of image taken up by real stuff * tile size to go from percentage to acctual coordinate
-        x = ((this_x+(x_coordinate/tile_size))/coordinate_factors[0][0])*coordinate_factors[1][0]*tile_size_2
-        y = -((this_y+(y_coordinate/tile_size))/coordinate_factors[0][1])*coordinate_factors[1][1]*tile_size_2
-        f_lower_x_bound = ((this_x+(lower_x_bound/tile_size))/coordinate_factors[0][0])*coordinate_factors[1][0]*tile_size_2
-        f_lower_y_bound = -((this_y+(lower_y_bound/tile_size))/coordinate_factors[0][1])*coordinate_factors[1][1]*tile_size_2
-        f_upper_x_bound = ((this_x+(upper_x_bound/tile_size))/coordinate_factors[0][0])*coordinate_factors[1][0]*tile_size_2
-        f_upper_y_bound = -((this_y+(upper_y_bound/tile_size))/coordinate_factors[0][1])*coordinate_factors[1][1]*tile_size_2
+        x = ((this_x+(x_coordinate/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        y = -((this_y+(y_coordinate/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
+        f_lower_x_bound = ((this_x+(lower_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        f_lower_y_bound = -((this_y+(lower_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
+        f_upper_x_bound = ((this_x+(upper_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        f_upper_y_bound = -((this_y+(upper_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
 
         return [y, x, f_lower_x_bound, f_lower_y_bound, f_upper_x_bound, f_upper_y_bound]
+
+    def make_wbc_xyxy(self, xyxy_data):
+        wbc_xyxy = []
+        wbc_xyxy.append(xyxy_data[0].item())
+        wbc_xyxy.append(xyxy_data[1].item())
+        wbc_xyxy.append(xyxy_data[2].item())
+        wbc_xyxy.append(xyxy_data[3].item())
+        return wbc_xyxy
+
+    def save_img(self, img, counter):
+        cv2.imwrite(f'media/slide_{self.slide}/wbcs/{counter}.png', img)
+
+class WbcIdentificationHandler():
+    def __init__(self, slide, imgs, save_loc):
+        self.slide = slide
+        self.imgs = imgs
+        self.save_loc = save_loc
+
+    def identify_wbcs(self, confidence=0.3):
+        #TODO scan for good areas of slide
+        identified_wbcs = []
+        model = YOLO('slide_analyzer/static/best.pt')
+        for img in self.imgs:
+            results = model(f'media/slide_{self.slide}/tiles{self.save_loc}/{img}')
+            boxes = []
+            for box in results[0].boxes:
+                if box.conf > confidence:
+                    boxes.append(box)
+            identified_wbcs.append([boxes, img])
+        return identified_wbcs
 
 def add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper):
     lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y = get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, 2464, 256)

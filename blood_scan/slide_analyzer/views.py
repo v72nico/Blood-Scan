@@ -2,14 +2,16 @@ from django.shortcuts import render
 from django.http import HttpRequest
 from slide_analyzer.models import *
 import os, shutil
-from slide_analyzer.utils.utils import identify_wbcs, get_tiles, generate_wbc_imgs_and_cords, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
-from slide_analyzer.utils.tiling import tile_image
+from slide_analyzer.utils.utils import WbcImageHandler, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
+from slide_analyzer.utils.tiling import Tiler
 from slide_analyzer.forms import UploadForm
 
 def home(request):
+    """ Handles get requests for home page """
     return render(request, 'home.html', {})
 
 def upload(request):
+    """ Handle upload post requests by saving uploaded files and making slide data from uploaded images and returning upload form or get requests by returning upload form """
     if request.method == 'POST':
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -26,9 +28,12 @@ def upload(request):
         return render(request, 'upload.html', {'form': form})
 
 def make_slide_data(slide):
+    """ Tile slide, save slide to database, identify wbcs and generate imgs and coordinates based on identifications """
     make_slide_dirs(slide)
-    max_zoom, coordinate_factors_tiles = tile_image('media/upload.png', slide)
-    _, coordinate_factors_full_res = tile_image(f'media/upload.png', slide, tile_size=2464, scale=0, save_loc='_id')
+    view_tiler = Tiler('media/upload.png', slide, 256)
+    max_zoom, coordinate_factors_tiles = view_tiler.tile_image()
+    identify_tiler = Tiler('media/upload.png', slide, 2464, max_scale=0, save_loc='_id')
+    _, coordinate_factors_full_res = identify_tiler.tile_image()
     coordinate_factors = calc_coordinate_factors(coordinate_factors_tiles, coordinate_factors_full_res)
 
     cf_str = coordinate_factors_to_string(coordinate_factors)
@@ -36,14 +41,15 @@ def make_slide_data(slide):
     thisSlide = Slide(number=slide, max_zoom=max_zoom, coordinate_factors=cf_str)
     thisSlide.save()
 
-    identify_tiles = get_tiles(slide, '_id')
-    identified_wbcs = identify_wbcs(slide, identify_tiles, save_loc='_id')
-    wbc_src_lst = generate_wbc_imgs_and_cords(slide, identified_wbcs, coordinate_factors, save_loc='_id', tile_size=2464, tile_size_2=256)
-    for wbc_src in wbc_src_lst:
-        thisWBC = WBCImg(type="unsorted", slide=slide, imgID=wbc_src[1], src=wbc_src[0], lat=wbc_src[2][0], lng=wbc_src[2][1], lng_lower=wbc_src[2][2], lat_lower=wbc_src[2][3], lng_upper=wbc_src[2][4], lat_upper=wbc_src[2][5])
+    wbc_image_handler = WbcImageHandler(slide, coordinate_factors, 2464, 256, '_id')
+    wbc_data_lst = wbc_image_handler.generate_wbc_imgs_and_cords()
+
+    for wbc_data in wbc_data_lst:
+        thisWBC = WBCImg(type="unsorted", slide=slide, imgID=wbc_data[1], src=wbc_data[0], lat=wbc_data[2][0], lng=wbc_data[2][1], lng_lower=wbc_data[2][2], lat_lower=wbc_data[2][3], lng_upper=wbc_data[2][4], lat_upper=wbc_data[2][5])
         thisWBC.save()
 
 def make_slide_dirs(slide):
+    ''' Create directories for slide data '''
     if os.path.isdir(f'media/slide_{slide}'):
         shutil.rmtree(f'media/slide_{slide}')
     os.mkdir(f'media/slide_{slide}')
@@ -52,6 +58,7 @@ def make_slide_dirs(slide):
     os.mkdir(f'media/slide_{slide}/wbcs')
 
 def wbc_view(request):
+    """ Handles get requests for WBC View pages by returing appriate slide data and WBC configs"""
     slide = handle_query(request)
     wbc_types_data = WBCDiffConfig.objects.all()
     wbc_types, wbc_categories = get_wbc_types(wbc_types_data)
@@ -63,6 +70,7 @@ def wbc_view(request):
     return render(request, 'wbc_view.html', {'wbc_imgs': wbc_img_lst, 'wbc_types': wbc_types, 'wbc_categories': wbc_categories})
 
 def slide_view(request):
+    """ Handles get requests for Slide View pages by returing appriate slide data, WBC configs, and morphology configs """
     slide = handle_query(request)
 
     wbc_types_data = WBCDiffConfig.objects.all()
@@ -91,6 +99,7 @@ def slide_view(request):
     return render(request, 'slide_view.html', {'wbc_types': wbc_types, 'wbc_categories': wbc_categories, 'wbc_counts': wbc_counts, 'morphology_types': morphology_types, 'morphology_categories': morphology_categories, 'slide_morphology': slide_morphology, 'wbc_imgs': wbc_img_lst, 'slide': slide, 'max_zoom': max_zoom})
 
 def get_wbc_types(wbc_types_data):
+    """ Converts WBC config database data to a list of parent catagories and list of each type, category and key bind """
     wbc_types = []
     wbc_categories = []
     for wbc_type in wbc_types_data:
@@ -105,6 +114,7 @@ def get_wbc_types(wbc_types_data):
     return wbc_types, wbc_categories
 
 def get_wbc_counts(wbc_img_data_lst):
+    """ Creates dictionary of amounts of each type of WBC from WBC image data """
     wbc_count = {}
     for wbc_img in wbc_img_data_lst:
         if wbc_img.type not in wbc_count:
