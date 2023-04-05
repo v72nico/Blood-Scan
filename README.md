@@ -8,13 +8,13 @@
 -Designed with tiled images from openflexure microscope \
 -Leaflet based slide viewer
 
-###### Uncompleted Features:
+##### Uncompleted Features:
 -Removing duplicate WBC counting across tile borders \
 -Editing WBC bounds \
 -Selecting new WBCs across tile borders \
 -Preventing multiple selections on a single WBC
 
-###### Run with:
+##### Run with:
 python3 manage.py makemigrations \
 python3 manage.py migrate \
 python3 manage.py runserver \
