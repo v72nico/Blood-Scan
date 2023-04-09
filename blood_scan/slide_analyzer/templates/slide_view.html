@@ -82,6 +82,9 @@
     function select_type(ev) {
       cell_type = ev.target.name;
       set_type(cell_type);
+      if(document.getElementById('setting_next_on_click').checked == true) {
+        increaseWbcOne(true)
+      }
     }
 
     function set_type(cell_type) {
@@ -215,7 +218,9 @@
           for (let i = 0; i < wbc_data.length; i++) {
             if(wbc_data[i][0] == cell_id) {
               set_type(cell_type);
-              increaseWbcOne(true)
+              if(document.getElementById('setting_next_on_key').checked == true) {
+                increaseWbcOne(true)
+              }
             }
           }
         }
@@ -465,6 +470,8 @@
               {% endfor %}
             {% endif %}
         {% endfor %}
+        <div> Next cell on key select: <input type="checkbox" id="setting_next_on_key" checked="true"> </div>
+        <div> Next cell on clicking select: <input type="checkbox" id="setting_next_on_click"> </div>
       </div>
     </div>
   </div>

@@ -99,8 +99,8 @@ class WbcIdentificationHandler():
             identified_wbcs.append([boxes, img])
         return identified_wbcs
 
-def add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper):
-    lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y = get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, 2464, 256)
+def add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size=2464, view_tile_size=256):
+    lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y = get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size, view_tile_size)
     img = cv2.imread(f'media/slide_{slide}/tiles_id/0.{this_y}.{this_x}.png')
     cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
     cv2.imwrite(f'media/slide_{slide}/wbcs/{img_id}.png', cropped_img)
