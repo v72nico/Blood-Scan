@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 {% extends "base.html" %}
 {% block content %}
-<h3>Overview</h3>
+<body>
+  <h3>Overview</h3>
+  {% for slide in slides %}
+    <div> Slide: {{ slide }} <a href="/home?slide={{ slide }}&action=delete_slide">Delete</a></div>
+  {% endfor %}
+</body>
 {% endblock %}

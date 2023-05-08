@@ -8,7 +8,16 @@ from slide_analyzer.forms import UploadForm
 
 def home(request):
     """ Handles get requests for home page """
-    return render(request, 'home.html', {})
+    slide = handle_query(request)
+    slides = Slide.objects.all()
+    slide_numbers = get_slide_numbers(slides)
+    return render(request, 'home.html', {'slides': slide_numbers})
+
+def get_slide_numbers(slides):
+    slide_numbers = []
+    for slide in slides:
+        slide_numbers.append(slide.number)
+    return slide_numbers
 
 def upload(request):
     """ Handle upload post requests by saving uploaded files and making slide data from uploaded images and returning upload form or get requests by returning upload form """
@@ -157,6 +166,13 @@ def handle_action(request, action, slide):
             delete_wbc(request, slide)
         if action == 'add_wbc':
             add_wbc(request, slide)
+        if action == 'delete_slide':
+            delete_slide(slide)
+
+def delete_slide(slide):
+    Slide.objects.filter(number=slide).delete()
+    WBCImg.objects.filter(slide=slide).delete()
+    shutil.rmtree(f"media/slide_{slide}")
 
 def add_wbc(request, slide):
     img_id = request.GET["id"]
