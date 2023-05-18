@@ -1,6 +1,10 @@
 import cv2
 import os
+import numpy
 from ultralytics import YOLO
+import openflexure_microscope_client as ofm_client
+from slide_analyzer.utils.pic import capture_full_image
+from time import sleep
 
 class WbcImageHandler():
     def __init__(self, slide, coordinate_factors, id_tile_size, view_tile_size, save_loc):
@@ -10,8 +14,8 @@ class WbcImageHandler():
         self.view_tile_size = view_tile_size
         self.save_loc = save_loc
         imgs = get_tiles(self.slide, self.save_loc)
-        wbc_id = WbcIdentificationHandler(self.slide, imgs, save_loc)
-        self.identified_wbcs = wbc_id.identify_wbcs()
+        wbc_id = WbcIdentificationHandler(self.slide, save_loc)
+        self.identified_wbcs = wbc_id.identify_wbcs(imgs)
 
     def generate_wbc_imgs_and_cords(self):
         #TODO find wbcs split between images
@@ -81,16 +85,15 @@ class WbcImageHandler():
         cv2.imwrite(f'media/slide_{self.slide}/wbcs/{counter}.png', img)
 
 class WbcIdentificationHandler():
-    def __init__(self, slide, imgs, save_loc):
+    def __init__(self, slide, save_loc):
         self.slide = slide
-        self.imgs = imgs
         self.save_loc = save_loc
 
-    def identify_wbcs(self, confidence=0.3):
+    def identify_wbcs(self, imgs, confidence=0.3):
         #TODO scan for good areas of slide
         identified_wbcs = []
         model = YOLO('slide_analyzer/static/best.pt')
-        for img in self.imgs:
+        for img in imgs:
             results = model(f'media/slide_{self.slide}/tiles{self.save_loc}/{img}')
             boxes = []
             for box in results[0].boxes:
@@ -98,6 +101,147 @@ class WbcIdentificationHandler():
                     boxes.append(box)
             identified_wbcs.append([boxes, img])
         return identified_wbcs
+
+class SlideCaptureHandler():
+    def __init__(self, slide, microscope_ip, wbc_count, timeout, id_tile_size_x=3280, id_tile_size_y=2464):
+        self.slide = slide
+        self.ip = microscope_ip
+        self.wbc_count = wbc_count
+        self.microscope = ofm_client.find_first_microscope()
+        self.original_position = self.microscope.position.copy()
+        self.direction = 'pos'
+        self.x_moves = 0
+        self.target_x_moves = 8
+        self.id_tile_size_y = id_tile_size_y
+        self.id_tile_size_x = id_tile_size_x
+        self.timeout = timeout
+        self.counter = 0
+        self.wbc_counter = 0
+        self.all_identified_wbcs = []
+
+    def next_capture(self):
+        if self.wbc_counter < self.wbc_count and self.counter < self.timeout:
+            identified_wbcs = self.wbc_capture()
+            return identified_wbcs, self.wbc_counter, self.counter
+        else:
+            self.microscope.move(self.original_position)
+            return 'complete', self.wbc_counter, self.counter
+
+    def wbc_capture(self):
+        img = self.capture_images()
+        img.save(f'media/slide_{self.slide}/tiles_id/{self.counter}.png')
+        wbc_id = WbcIdentificationHandler(self.slide, '_id')
+        identified_wbcs_data = wbc_id.identify_wbcs([f'{self.counter}.png'])
+        identified_wbcs = []
+        for wbc in identified_wbcs_data:
+            if len(wbc[0]) > 0:
+                wbc_xyxy = self.make_wbc_xyxy(wbc[0][0].xyxy[0])
+                wbc_img = self.generate_wbc_img(wbc_xyxy, f'{self.counter}.png')
+                self.save_img(wbc_img, self.wbc_counter)
+                identified_wbcs.append([self.wbc_counter, f'media/slide_{self.slide}/wbcs/{self.wbc_counter}.png'])
+                self.wbc_counter += 1
+        self.counter += 1
+        self.move_pos()
+        return identified_wbcs
+
+    def capture_images(self, takes=3):
+        imgs = []
+        self.microscope.autofocus()
+        img = self.run_img_cap()
+        imgs.append(img)
+        for i in range(0, takes-1):
+            self.microscope.laplacian_autofocus({})
+            img = self.run_img_cap()
+            imgs.append(img)
+        img = self.least_blurry(imgs)
+        return img
+        #return img with lowest laplace try to sticth...
+
+    def least_blurry(self, imgs):
+        least_blurry = ''
+        least_blurry_value = 0
+        for img in imgs:
+            cv2img = pil_to_cv2(img)
+            gray = cv2.cvtColor(cv2img, cv2.COLOR_BGR2GRAY)
+            laplace = cv2.Laplacian(gray, cv2.CV_64F).var()
+            if laplace > least_blurry_value:
+                least_blurry = img
+                least_blurry_value = laplace
+        return least_blurry
+
+    def run_img_cap(self):
+        img = None
+        while img == None:
+            try:
+                img = capture_full_image(self.microscope)
+            except Exception as e:
+                sleep(2)
+                print(e)
+        return img
+
+    def move_pos(self):
+        if self.x_moves == self.target_x_moves-1:
+            self.reverse_direction()
+            self.x_moves = 0
+            self.move_y_pos()
+        else:
+            self.move_x_pos()
+            self.x_moves += 1
+
+    def reverse_direction(direction):
+        if direction == 'pos':
+            direction = 'neg'
+        elif direction == 'neg':
+            direction = 'pos'
+        return direction
+
+    def move_x_pos(self, x_step=2500):
+        pos = self.microscope.position
+        if self.direction == 'pos':
+            pos['x'] += x_step
+        if self.direction == 'neg':
+            pos['x'] -= x_step
+        self.microscope.move(pos)
+
+    def move_y_pos(self, y_step=2500):
+        pos = self.microscope.position
+        pos['y'] += y_step
+        self.microscope.move(pos)
+
+    def reverse_direction(self):
+        if self.direction == 'pos':
+            self.direction = 'neg'
+        elif self.direction == 'neg':
+            self.direction = 'pos'
+
+    def generate_wbc_img(self, wbc_xyxy, img_src):
+        margin = 20
+        lower_x_bound = int(wbc_xyxy[0]-margin)
+        if lower_x_bound < 0:
+            lower_x_bound = 0
+        lower_y_bound = int(wbc_xyxy[1]-margin)
+        if lower_y_bound < 0:
+            lower_y_bound = 0
+        upper_x_bound = int(wbc_xyxy[2]+margin)
+        if upper_x_bound > self.id_tile_size_x:
+            upper_x_bound = self.id_tile_size_x
+        upper_y_bound = int(wbc_xyxy[3]+margin)
+        if upper_y_bound > self.id_tile_size_y:
+            upper_y_bound = self.id_tile_size_y
+        img = cv2.imread(f'media/slide_{self.slide}/tiles_id/{img_src}')
+        cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
+        return cropped_img
+
+    def make_wbc_xyxy(self, xyxy_data):
+        wbc_xyxy = []
+        wbc_xyxy.append(xyxy_data[0].item())
+        wbc_xyxy.append(xyxy_data[1].item())
+        wbc_xyxy.append(xyxy_data[2].item())
+        wbc_xyxy.append(xyxy_data[3].item())
+        return wbc_xyxy
+
+    def save_img(self, img, counter):
+        cv2.imwrite(f'media/slide_{self.slide}/wbcs/{counter}.png', img)
 
 def add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size=2464, view_tile_size=256):
     lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y = get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size, view_tile_size)
@@ -156,3 +300,10 @@ def string_to_coordinate_factors(cf_str):
     coordinate_factors[1].append(float(split_cf_str[2]))
     coordinate_factors[1].append(float(split_cf_str[3]))
     return coordinate_factors
+
+def pil_to_cv2(img):
+    pil_image = img.convert('RGB')
+    open_cv_image = numpy.array(pil_image)
+    # Convert RGB to BGR
+    open_cv_image = open_cv_image[:, :, ::-1].copy()
+    return open_cv_image

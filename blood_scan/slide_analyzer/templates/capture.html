@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+{% block content %}
+
+<form id=upload_form action="/capture" method="POST" enctype="multipart/form-data">
+  <h3>Capture</h3>
+  {% csrf_token %}
+  {{ form.only_wbc.label }} {{ form.only_wbc }}
+  </br>
+  </br>
+  {{ form.slide.label }} {{ form.slide }}
+  </br>
+  </br>
+  {{ form.wbc_count.label }} {{ form.wbc_count }}
+  </br>
+  </br>
+  {{ form.microscope_ip.label }} {{ form.microscope_ip }}
+  </br>
+  </br>
+  <input type="submit" value="Start">
+  {{ form.errors }}
+</form>
+
+{% endblock %}

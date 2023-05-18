@@ -96,6 +96,11 @@ h4 {
 
 .cell_images {
   cursor: pointer;
+  object-fit: contain;
+  max-width:  20%;
+  max-height: 20%;
+  width: auto;
+  height: auto;
 }
 
 .modal {
@@ -178,9 +183,13 @@ h4 {
 }
 
 .right_arrow {
-  rotate: 90deg
+  rotate: 90deg;
 }
 
 .left_arrow {
-  rotate: 270deg
+  rotate: 270deg;
+}
+
+.stream {
+  width: 20%;
 }

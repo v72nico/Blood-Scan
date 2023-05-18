@@ -13,11 +13,6 @@ class WBCImg(models.Model):
     lat_lower = models.FloatField()
     lng_lower = models.FloatField()
 
-    def make_slide_for_test():
-        wbc_img_lst = os.listdir("slide/1")
-        for wbc_img in wbc_img_lst:
-            WBCImg(type="none", slide=1)
-
 class WBCDiffConfig(models.Model):
     type = models.CharField(max_length=50)
     parent = models.CharField(max_length=50)
@@ -33,3 +28,12 @@ class Slide(models.Model):
     morphology = models.TextField()
     max_zoom = models.IntegerField()
     coordinate_factors = models.CharField(max_length=100)
+
+class MicroscopeUse(models.Model):
+    ip = models.TextField()
+    slide = models.IntegerField()
+    current_wbc = models.IntegerField()
+    target_wbc = models.IntegerField()
+    current_field = models.IntegerField()
+    target_field = models.IntegerField()
+    in_use = models.BooleanField()

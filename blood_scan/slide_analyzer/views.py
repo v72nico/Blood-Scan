@@ -1,10 +1,12 @@
 from django.shortcuts import render
 from django.http import HttpRequest
-from slide_analyzer.models import *
 import os, shutil
-from slide_analyzer.utils.utils import WbcImageHandler, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
+import threading
+
+from slide_analyzer.models import *
+from slide_analyzer.utils.utils import WbcImageHandler, SlideCaptureHandler, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
 from slide_analyzer.utils.tiling import Tiler
-from slide_analyzer.forms import UploadForm
+from slide_analyzer.forms import UploadForm, CaptureForm
 
 def home(request):
     """ Handles get requests for home page """
@@ -19,6 +21,76 @@ def get_slide_numbers(slides):
         slide_numbers.append(slide.number)
     return slide_numbers
 
+def status(request):
+    microscope_data = MicroscopeUse.objects.filter(in_use=True)
+    microscopes = make_microscope_lst(microscope_data)
+    return render(request, 'status.html', {'microscopes': microscopes})
+
+def make_microscope_lst(microscope_data):
+    microscopes = []
+    for microscope in microscope_data:
+        microscopes.append([microscope.ip, microscope.slide, microscope.current_wbc, microscope.target_wbc, microscope.current_field, microscope.target_field])
+    return microscopes
+
+def capture(request):
+    if request.method == 'POST':
+        form = CaptureForm(request.POST)
+        if form.is_valid():
+            slide = form.cleaned_data['slide']
+            microscope_ip = form.cleaned_data['microscope_ip']
+            wbc_count = form.cleaned_data['wbc_count']
+            duplicate_slides = Slide.objects.filter(number=slide)
+            make_microscope_data(microscope_ip, wbc_count, slide)
+            microscope_in_use = MicroscopeUse.objects.get(ip=microscope_ip)
+            if microscope_in_use.in_use == False:
+                if len(duplicate_slides) == 0:
+                    toggle_microscope_use(microscope_ip)
+                    t = threading.Thread(target=make_slide_data_capture, args=[slide, microscope_ip, wbc_count], daemon=True)
+                    t.start()
+                else:
+                    form.errors[''] = "Error: Slide number already exists"
+            else:
+                form.errors[''] = "Error: Microscope In Use"
+        return render(request, 'capture.html', {'form': form})
+    if request.method == 'GET':
+        form = CaptureForm()
+        return render(request, 'capture.html', {'form': form})
+
+def make_microscope_data(ip, target_wbc, slide):
+    if len(MicroscopeUse.objects.filter(ip=ip)) == 0:
+        microscope = MicroscopeUse(ip=ip, in_use=False, slide=slide, current_wbc=0, target_wbc=target_wbc, current_field=0, target_field=100)
+        microscope.save()
+
+def toggle_microscope_use(ip):
+    microscope = MicroscopeUse.objects.get(ip=ip)
+    if microscope.in_use == False:
+        microscope.in_use = True
+    elif microscope.in_use == True:
+        microscope.in_use = False
+    microscope.save()
+
+def make_slide_data_capture(slide, microscope_ip, wbc_count, timeout=100):
+    make_slide_dirs(slide)
+    thisSlide = Slide(number=slide, max_zoom=0, coordinate_factors='blank')
+    thisSlide.save()
+    microscope = MicroscopeUse.objects.get(ip=microscope_ip)
+    try:
+        CaptureHandler = SlideCaptureHandler(slide, microscope_ip, wbc_count, timeout)
+        while True:
+            wbc_data_lst, wbc_counter, counter = CaptureHandler.next_capture()
+            microscope.current_wbc = wbc_counter
+            microscope.current_field = counter
+            microscope.save()
+            if wbc_data_lst == 'complete':
+                break
+            for wbc_data in wbc_data_lst:
+                thisWBC = WBCImg(type="unsorted", slide=slide, imgID=int(wbc_data[0]), src=wbc_data[1], lat=0, lng=0, lng_lower=0, lat_lower=0, lng_upper=0, lat_upper=0)
+                thisWBC.save()
+        microscope.delete()
+    except Exception as e:
+        print('Error:', e)
+        microscope.delete()
+
 def upload(request):
     """ Handle upload post requests by saving uploaded files and making slide data from uploaded images and returning upload form or get requests by returning upload form """
     if request.method == 'POST':
@@ -30,13 +102,13 @@ def upload(request):
             if len(duplicate_slides) == 0:
                 make_slide_data(slide)
             else:
-                form.errors[''] = "Slide number already exists"
+                form.errors[''] = "Error: Slide number already exists"
         return render(request, 'upload.html', {'form': form})
     if request.method == 'GET':
         form = UploadForm()
         return render(request, 'upload.html', {'form': form})
 
-def make_slide_data(slide):
+def make_slide_data_upload(slide):
     """ Tile slide, save slide to database, identify wbcs and generate imgs and coordinates based on identifications """
     make_slide_dirs(slide)
     view_tiler = Tiler('media/upload.png', slide, 256)

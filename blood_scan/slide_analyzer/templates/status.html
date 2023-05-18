@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+{% block content %}
+{% load static %}
+{% for ip, slide, current_wbc, target_wbc, current_field, target_field in microscopes %}
+  <div>
+    <img class="stream" style="-webkit-user-select: none;" src="http://{{ ip }}/api/v2/streams/mjpeg">
+    <h3> {{ ip }} <h3>
+    <h3> Slide: <a href="/wbc_view?slide={{ slide }}"> {{ slide }}</a></h3>
+    <h3> WBC Progress: {{ current_wbc }} / {{ target_wbc }} </h3>
+    <h3> Field Timeout: {{ current_field }} / {{ target_field }} </h3>
+  </div>
+{% endfor %}
+{% endblock %}

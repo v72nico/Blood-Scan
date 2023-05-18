@@ -10,6 +10,8 @@
         <a id=slide_view href="slide_view">Slide View</a>
         <a id=wbc_view href="wbc_view">WBC View</a>
         <a id=upload href="upload">Upload</a>
+        <a id=capture href="capture">Capture</a>
+        <a id=status href="status">Status</a>
     </div>
     <script>
       active = window.location.pathname.substring(1, window.location.pathname.length)
@@ -31,6 +33,8 @@
           document.getElementById("slide_view").href += "?slide="+slide_no
           document.getElementById("wbc_view").href += "?slide="+slide_no
           document.getElementById("upload").href += "?slide="+slide_no
+          document.getElementById("capture").href += "?slide="+slide_no
+          document.getElementById("status").href += "?slide="+slide_no
         }
       </script>
     </form>

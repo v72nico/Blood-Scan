@@ -4,7 +4,7 @@
 <body>
   <h3>Overview</h3>
   {% for slide in slides %}
-    <div> Slide: {{ slide }} <a href="/home?slide={{ slide }}&action=delete_slide">Delete</a></div>
+    <div> Slide: {{ slide }} <a href="/slide_view?slide={{ slide }}"> View</a>  <a href="/home?slide={{ slide }}&action=delete_slide">Delete</a></div>
   {% endfor %}
 </body>
 {% endblock %}
