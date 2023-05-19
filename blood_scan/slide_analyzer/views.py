@@ -100,7 +100,7 @@ def upload(request):
             save_upload(request.FILES['file'])
             duplicate_slides = Slide.objects.filter(number=slide)
             if len(duplicate_slides) == 0:
-                make_slide_data(slide)
+                make_slide_data_upload(slide)
             else:
                 form.errors[''] = "Error: Slide number already exists"
         return render(request, 'upload.html', {'form': form})

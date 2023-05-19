@@ -6,7 +6,8 @@
 -Manual WBC typing \
 -Manual morphology \
 -Designed with tiled images from openflexure microscope \
--Leaflet based slide viewer
+-Leaflet based slide viewer \
+-Capture Slide WBCs without tiled slide image
 
 ##### Uncompleted Features:
 -Removing duplicate WBC counting across tile borders \
