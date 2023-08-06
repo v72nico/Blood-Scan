@@ -193,3 +193,7 @@ h4 {
 .stream {
   width: 20%;
 }
+
+.wbc_icon {
+  background-image: url("wbc.png");
+}

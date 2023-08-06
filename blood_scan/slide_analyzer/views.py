@@ -39,8 +39,9 @@ def capture(request):
             slide = form.cleaned_data['slide']
             microscope_ip = form.cleaned_data['microscope_ip']
             wbc_count = form.cleaned_data['wbc_count']
+            field_limit = form.cleaned_data['field_limit']
             duplicate_slides = Slide.objects.filter(number=slide)
-            make_microscope_data(microscope_ip, wbc_count, slide)
+            make_microscope_data(microscope_ip, wbc_count, field_limit, slide)
             microscope_in_use = MicroscopeUse.objects.get(ip=microscope_ip)
             if microscope_in_use.in_use == False:
                 if len(duplicate_slides) == 0:
@@ -56,9 +57,9 @@ def capture(request):
         form = CaptureForm()
         return render(request, 'capture.html', {'form': form})
 
-def make_microscope_data(ip, target_wbc, slide):
+def make_microscope_data(ip, target_wbc, field_limit, slide):
     if len(MicroscopeUse.objects.filter(ip=ip)) == 0:
-        microscope = MicroscopeUse(ip=ip, in_use=False, slide=slide, current_wbc=0, target_wbc=target_wbc, current_field=0, target_field=100)
+        microscope = MicroscopeUse(ip=ip, in_use=False, slide=slide, current_wbc=0, target_wbc=target_wbc, current_field=0, target_field=field_limit)
         microscope.save()
 
 def toggle_microscope_use(ip):
@@ -238,15 +239,24 @@ def handle_action(request, action, slide):
             delete_wbc(request, slide)
         if action == 'add_wbc':
             add_wbc(request, slide)
+        if action == 'update_wbc':
+            update_wbc(request, slide)
         if action == 'delete_slide':
             delete_slide(slide)
+
+def update_wbc(request, slide):
+    img_id = request.GET["id"]
+    print(img_id)
+    this_type = WBCImg.objects.filter(slide=slide, imgID=img_id).get().type
+    delete_wbc(request, slide)
+    add_wbc(request, slide, wbc_type=this_type)
 
 def delete_slide(slide):
     Slide.objects.filter(number=slide).delete()
     WBCImg.objects.filter(slide=slide).delete()
     shutil.rmtree(f"media/slide_{slide}")
 
-def add_wbc(request, slide):
+def add_wbc(request, slide, wbc_type="unsorted"):
     img_id = request.GET["id"]
     lat_lower = float(request.GET["lat_lower"])
     lat_upper = float(request.GET["lat_upper"])
@@ -257,7 +267,7 @@ def add_wbc(request, slide):
     add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper)
     lng = (lng_upper+lng_lower)/2
     lat = (lat_upper+lat_lower)/2
-    new_wbc = WBCImg(type='unsorted', src=f'media/slide_{slide}/wbcs/{img_id}.png', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
+    new_wbc = WBCImg(type=wbc_type, src=f'media/slide_{slide}/wbcs/{img_id}.png', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
     new_wbc.save()
 
 def delete_wbc(request, slide):

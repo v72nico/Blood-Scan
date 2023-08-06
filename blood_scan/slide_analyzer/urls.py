@@ -12,3 +12,7 @@ urlpatterns = [
     path('capture', views.capture, name='capture'),
     path('status', views.status, name='status'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+#startup TODO move this
+from slide_analyzer.models import MicroscopeUse
+MicroscopeUse.objects.all().delete()

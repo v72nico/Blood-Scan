@@ -7,11 +7,15 @@
   integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI="
   crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
-  <script src="{% static 'Leaflet.Editable.js' %}"></script>
+  <link
+  rel="stylesheet"
+  href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"
+  />
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
   <script>
     var wbc_data = [];
     {% for _, id, type, lat, lng, lat_lower, lng_lower, lat_upper, lng_upper in wbc_imgs %}
-      wbc_data.push([{{ id }}, {{ lat }}, {{ lng }}, '{{ type }}', {{ lat_lower }}, {{ lng_lower }}, {{ lat_upper }}, {{ lng_upper }}]);
+      wbc_data.push([{{ id }}, {{ lat }}, {{ lng }}, '{{ type }}', {{ lat_lower }}, {{ lng_lower }}, {{ lat_upper }}, {{ lng_upper }}, 0]);
     {% endfor %}
 
     var wbc_types = [];
@@ -76,6 +80,12 @@
     function sendAddWbc(slide, imgID, latUpper, lngUpper, latLower, lngLower) {
       const req = new XMLHttpRequest();
       req.open("GET", "/wbc_view?slide="+slide+"&action=add_wbc&id="+imgID+"&lat_upper="+latUpper+"&lng_upper="+lngUpper+"&lat_lower="+latLower+"&lng_lower="+lngLower);
+      req.send();
+    }
+
+    function sendUpdateWBC(slide, imgID, latlngs) {
+      const req = new XMLHttpRequest();
+      req.open("GET", "/wbc_view?slide="+slide+"&action=update_wbc&id="+imgID+"&lat_lower="+latlngs[0]+"&lng_lower="+latlngs[1]+"&lat_upper="+latlngs[2]+"&lng_upper="+latlngs[3]);
       req.send();
     }
 
@@ -227,52 +237,6 @@
       }
     }
 
-    function add_wbc_recs() {
-      for(let i = 0; i < wbc_data.length; i++) {
-        var rec = new L.Rectangle([[wbc_data[i][4], wbc_data[i][5]], [wbc_data[i][6], wbc_data[i][7]]]).addTo(wbcLayer);
-      }
-    }
-
-    function deleteOn() {
-      var del = true
-    }
-
-    var recInProgress
-
-    function makeWbcRectangle() {
-      var rec = map.editTools.myStartRectangle()
-
-      rec.addTo(wbcLayer)
-      recInProgress = rec
-      document.addEventListener("mouseup", finishWbcRectangle);
-    }
-
-    function finishWbcRectangle() {
-      finishedRec = recInProgress
-      recInProgress = ''
-      latUpper = finishedRec['_latlngs'][0][2]['lat']
-      lngUpper = finishedRec['_latlngs'][0][0]['lng']
-      latLower = finishedRec['_latlngs'][0][0]['lat']
-      lngLower = finishedRec['_latlngs'][0][2]['lng']
-      fixedLatLng = fixLatLng(latLower, lngLower, latUpper, lngUpper)
-      latLower = fixedLatLng[0]
-      lngLower = fixedLatLng[1]
-      latUpper = fixedLatLng[2]
-      lngUpper = fixedLatLng[3]
-
-      if(wbc_data.length != 0) {
-        topID = wbc_data[wbc_data.length-1][0]
-      } else {
-        topID = -1
-      }
-      lat = (latUpper+latLower)/2
-      lng = (lngUpper+lngLower)/2
-      //lats swapped because its used as id when deleting cell and on first add it gives lat lower instaed of lat upper NNO
-      wbc_data.push([topID+1, lat, lng, 'unsorted', latLower, lngLower, latUpper, lngUpper])
-      sendAddWbc(slide, topID+1, latUpper, lngUpper, latLower, lngLower)
-      document.removeEventListener("mouseup", finishWbcRectangle);
-    }
-
     function fixLatLng(latLower, lngLower, latUpper, lngUpper) {
       if(latUpper > latLower) {
         newLatLower = latUpper
@@ -291,66 +255,107 @@
       return [newLatLower, newlngLower, newLatUpper, newlngUpper]
     }
 
-    function deleteWbc (e) {
-      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) shape = this.editor.myShapeAt(e.latlng)
-      if ((e.originalEvent.ctrlKey || e.originalEvent.metaKey) && this.editEnabled()) {
-        this.editor.deleteShapeAt(e.latlng);
-        var latUpper = shape[0]['lat']
-        if(shape[0]['lat'] < shape[2]['lat']) {
-          latUpper = shape[0]['lat']
-        } else {
-          latUpper = shape[2]['lat']
-        }
-        for(let i = 0; i < wbc_data.length; i++) {
-          if(wbc_data[i][6] == latUpper){
-            lowerCountOne(wbc_data[i][3])
-            sendDeleteWbc(slide, wbc_data[i][0])
+    function deleteWBC (rec) {
+      for(let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][8] == rec._leaflet_id){
+          lowerCountOne(wbc_data[i][3])
+          sendDeleteWbc(slide, wbc_data[i][0])
 
-            toggle = document.getElementById('cell_toggle_counter')
-            if(parseInt(toggle.value) == wbc_data[i][0]){
-              changeToggle(false)
-            }
-
-            wbc_data.splice(i, 1)
-            break;
+          toggle = document.getElementById('cell_toggle_counter')
+          if(parseInt(toggle.value) == wbc_data[i][0]){
+            changeToggle(false)
           }
+
+          wbc_data.splice(i, 1)
+          break;
         }
       }
     };
 
-    function make_controls() {
-      //STOLEN from demo
-      L.EditControl = L.Control.extend({
-          options: {
-              position: 'topleft',
-              callback: null,
-              kind: '',
-              html: ''
-          },
-          onAdd: function (map) {
-              var container = L.DomUtil.create('div', 'leaflet-control leaflet-bar'),
-                link = L.DomUtil.create('a', '', container);
-              link.href = '#';
-              link.title = this.options.title;
-              link.innerHTML = this.options.html;
-              L.DomEvent.on(link, 'click', L.DomEvent.stop)
-                .on(link, 'click', function () {
-                  window.LAYER = this.options.callback.call(map.editTools);
-                }, this);
-              return container;
-          }
+    function makeControls() {
+      map.pm.addControls({
+        position: 'topleft',
+        drawCircleMarker: false,
+        drawPolyline: false,
+        drawRectangle: false,
+        drawPolygon: false,
+        drawCircle: false,
+        drawMarker: false,
+        customControls: true,
+        cutPolygon: false,
+        rotateMode: false,
       });
-      L.NewWBCControl = L.EditControl.extend({
-          options: {
-              position: 'topleft',
-              callback: makeWbcRectangle,
-              kind: 'rectangle',
-              html: "<img src={% static 'wbc.png' %} width=30 height=30>",
-              title: 'Add WBC',
-          }
+      map.pm.Toolbar.copyDrawControl("Rectangle", {
+        name: "drawWBC",
+        block: "draw",
+        title: "WBC",
+        className: "wbc_icon",
       });
+    }
 
-      return [L.NewWBCControl]
+    function addTriggers() {
+      map.on("pm:remove", (e) => {
+        deleteWBC(e.layer)
+      });
+      map.on("pm:create", (e) => {
+        if (e.shape == "drawWBC") {
+          newWBCRec(e.layer)
+        }
+      });
+    }
+
+    function newWBCRec(rec) {
+      latlngs = rec.getLatLngs()[0]
+      recInProgress = ''
+      latUpper = latlngs[2]['lat']
+      lngUpper = latlngs[0]['lng']
+      latLower = latlngs[0]['lat']
+      lngLower = latlngs[2]['lng']
+      fixedLatLng = fixLatLng(latLower, lngLower, latUpper, lngUpper)
+      latLower = fixedLatLng[0]
+      lngLower = fixedLatLng[1]
+      latUpper = fixedLatLng[2]
+      lngUpper = fixedLatLng[3]
+
+      if(wbc_data.length != 0) {
+        topID = wbc_data[wbc_data.length-1][0]
+      } else {
+        topID = -1
+      }
+      lat = (latUpper+latLower)/2
+      lng = (lngUpper+lngLower)/2
+
+      addUpdateTrigger(rec)
+
+      //lats swapped because its used as id when deleting cell and on first add it gives lat lower instaed of lat upper NNO
+      wbc_data.push([topID+1, lat, lng, 'unsorted', latLower, lngLower, latUpper, lngUpper, rec._leaflet_id])
+      sendAddWbc(slide, topID+1, latUpper, lngUpper, latLower, lngLower)
+    }
+
+    function addWBCRecs() {
+      for(let i = 0; i < wbc_data.length; i++) {
+        var rec = new L.Rectangle([[wbc_data[i][4], wbc_data[i][5]], [wbc_data[i][6], wbc_data[i][7]]], {snapIgnore : true}).addTo(wbcLayer);
+        wbc_data[i][8] = rec._leaflet_id
+        addUpdateTrigger(rec)
+      }
+    }
+
+    function addUpdateTrigger(rec) {
+      rec.on("pm:update", (e) => {
+        console.log(e)
+        console.log(e.layer._leaflet_id)
+        updateWBC(rec)
+      });
+    }
+
+    function updateWBC(rec) {
+      for(let i = 0; i < wbc_data.length; i++) {
+        if(wbc_data[i][8] == rec._leaflet_id) {
+          latlngs = rec.getLatLngs()[0]
+          fixedLatLng = fixLatLng(latlngs[0]['lat'], latlngs[2]['lng'], latlngs[2]['lat'], latlngs[0]['lng'])
+          sendUpdateWBC(slide, wbc_data[i][0], fixedLatLng)
+        }
+      }
     }
 
   </script>
@@ -368,17 +373,11 @@
         wbcLayer = new L.LayerGroup().addTo(map);
         layerControl = L.control.layers({}, {}, {'collapsed': false}).addTo(map);
         layerControl.addOverlay(wbcLayer , "WBC");
+        map.pm.setGlobalOptions({layerGroup: wbcLayer});
 
-        map.on('layeradd', function (e) {
-            if (e.layer instanceof L.Path) e.layer.on('click', L.DomEvent.stop).on('click', deleteWbc, e.layer);
-            if (e.layer instanceof L.Path) e.layer.on('dblclick', L.DomEvent.stop).on('dblclick', e.layer.toggleEdit);
-        });
-
-        controls = make_controls();
-        map.addControl(new controls[0]);
-        map.on('contextmenu', L.popup().setContent('<p>Hello world!<br />This is a nice popup.</p>'));
-
-        add_wbc_recs()
+        makeControls();
+        addTriggers();
+        addWBCRecs();
       </script>
     </div>
     <div>

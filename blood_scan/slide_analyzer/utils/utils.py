@@ -3,7 +3,7 @@ import os
 import numpy
 from ultralytics import YOLO
 import openflexure_microscope_client as ofm_client
-from slide_analyzer.utils.pic import capture_full_image
+from slide_analyzer.utils.ofm_utils import capture_full_image
 from time import sleep
 
 class WbcImageHandler():
