@@ -8,6 +8,11 @@ from slide_analyzer.utils.utils import WbcImageHandler, SlideCaptureHandler, sav
 from slide_analyzer.utils.tiling import Tiler
 from slide_analyzer.forms import UploadForm, CaptureForm
 
+from slide_analyzer.utils.list_tools import get_slide_numbers, make_microscope_lst, get_wbc_types, get_wbc_counts, get_morphology_types, get_morphology
+from slide_analyzer.utils.db_manipulators import MicroscopeHandler, ActionHandler
+from slide_analyzer.utils.os_tools import make_slide_dirs
+
+
 def home(request):
     """ Handles get requests for home page """
     slide = handle_query(request)
@@ -15,22 +20,10 @@ def home(request):
     slide_numbers = get_slide_numbers(slides)
     return render(request, 'home.html', {'slides': slide_numbers})
 
-def get_slide_numbers(slides):
-    slide_numbers = []
-    for slide in slides:
-        slide_numbers.append(slide.number)
-    return slide_numbers
-
 def status(request):
     microscope_data = MicroscopeUse.objects.filter(in_use=True)
     microscopes = make_microscope_lst(microscope_data)
     return render(request, 'status.html', {'microscopes': microscopes})
-
-def make_microscope_lst(microscope_data):
-    microscopes = []
-    for microscope in microscope_data:
-        microscopes.append([microscope.ip, microscope.slide, microscope.current_wbc, microscope.target_wbc, microscope.current_field, microscope.target_field])
-    return microscopes
 
 def capture(request):
     if request.method == 'POST':
@@ -41,11 +34,11 @@ def capture(request):
             wbc_count = form.cleaned_data['wbc_count']
             field_limit = form.cleaned_data['field_limit']
             duplicate_slides = Slide.objects.filter(number=slide)
-            make_microscope_data(microscope_ip, wbc_count, field_limit, slide)
+            MicroscopeHandler.make_microscope_data(microscope_ip, wbc_count, field_limit, slide)
             microscope_in_use = MicroscopeUse.objects.get(ip=microscope_ip)
             if microscope_in_use.in_use == False:
                 if len(duplicate_slides) == 0:
-                    toggle_microscope_use(microscope_ip)
+                    MicroscopeHandler.toggle_microscope_use(microscope_ip)
                     t = threading.Thread(target=make_slide_data_capture, args=[slide, microscope_ip, wbc_count], daemon=True)
                     t.start()
                 else:
@@ -56,19 +49,6 @@ def capture(request):
     if request.method == 'GET':
         form = CaptureForm()
         return render(request, 'capture.html', {'form': form})
-
-def make_microscope_data(ip, target_wbc, field_limit, slide):
-    if len(MicroscopeUse.objects.filter(ip=ip)) == 0:
-        microscope = MicroscopeUse(ip=ip, in_use=False, slide=slide, current_wbc=0, target_wbc=target_wbc, current_field=0, target_field=field_limit)
-        microscope.save()
-
-def toggle_microscope_use(ip):
-    microscope = MicroscopeUse.objects.get(ip=ip)
-    if microscope.in_use == False:
-        microscope.in_use = True
-    elif microscope.in_use == True:
-        microscope.in_use = False
-    microscope.save()
 
 def make_slide_data_capture(slide, microscope_ip, wbc_count, timeout=100):
     make_slide_dirs(slide)
@@ -130,15 +110,6 @@ def make_slide_data_upload(slide):
         thisWBC = WBCImg(type="unsorted", slide=slide, imgID=wbc_data[1], src=wbc_data[0], lat=wbc_data[2][0], lng=wbc_data[2][1], lng_lower=wbc_data[2][2], lat_lower=wbc_data[2][3], lng_upper=wbc_data[2][4], lat_upper=wbc_data[2][5])
         thisWBC.save()
 
-def make_slide_dirs(slide):
-    ''' Create directories for slide data '''
-    if os.path.isdir(f'media/slide_{slide}'):
-        shutil.rmtree(f'media/slide_{slide}')
-    os.mkdir(f'media/slide_{slide}')
-    os.mkdir(f'media/slide_{slide}/tiles')
-    os.mkdir(f'media/slide_{slide}/tiles_id')
-    os.mkdir(f'media/slide_{slide}/wbcs')
-
 def wbc_view(request):
     """ Handles get requests for WBC View pages by returing appriate slide data and WBC configs"""
     slide = handle_query(request)
@@ -152,7 +123,7 @@ def wbc_view(request):
     return render(request, 'wbc_view.html', {'wbc_imgs': wbc_img_lst, 'wbc_types': wbc_types, 'wbc_categories': wbc_categories})
 
 def slide_view(request):
-    """ Handles get requests for Slide View pages by returing appriate slide data, WBC configs, and morphology configs """
+    """ Handles get requests for Slide View pages by returing appropriate slide data, WBC configs, and morphology configs """
     slide = handle_query(request)
 
     wbc_types_data = WBCDiffConfig.objects.all()
@@ -180,40 +151,6 @@ def slide_view(request):
 
     return render(request, 'slide_view.html', {'wbc_types': wbc_types, 'wbc_categories': wbc_categories, 'wbc_counts': wbc_counts, 'morphology_types': morphology_types, 'morphology_categories': morphology_categories, 'slide_morphology': slide_morphology, 'wbc_imgs': wbc_img_lst, 'slide': slide, 'max_zoom': max_zoom})
 
-def get_wbc_types(wbc_types_data):
-    """ Converts WBC config database data to a list of parent catagories and list of each type, category and key bind """
-    wbc_types = []
-    wbc_categories = []
-    for wbc_type in wbc_types_data:
-        if wbc_type.key_bind == None:
-            this_key_bind = ''
-        else:
-            this_key_bind = wbc_type.key_bind
-        wbc_types.append([wbc_type.type, wbc_type.parent, this_key_bind])
-        if wbc_type.parent != "None":
-            if wbc_type.parent not in wbc_categories:
-                wbc_categories.append(wbc_type.parent)
-    return wbc_types, wbc_categories
-
-def get_wbc_counts(wbc_img_data_lst):
-    """ Creates dictionary of amounts of each type of WBC from WBC image data """
-    wbc_count = {}
-    for wbc_img in wbc_img_data_lst:
-        if wbc_img.type not in wbc_count:
-            wbc_count[wbc_img.type] = 1
-        else:
-            wbc_count[wbc_img.type] += 1
-    return wbc_count
-
-def get_morphology_types(morphology_data):
-    morphology_types = []
-    morphology_categories = []
-    for morphology_type in morphology_data:
-        morphology_types.append([morphology_type.type, morphology_type.parent, morphology_type.quantitative])
-        if morphology_type.parent not in morphology_categories:
-            morphology_categories.append(morphology_type.parent)
-    return morphology_types, morphology_categories
-
 def handle_query(request):
     try:
         slide = request.GET["slide"]
@@ -224,97 +161,8 @@ def handle_query(request):
     except:
         action = None
     if action != None:
-        handle_action(request, action, slide)
+        ActionHandler().handle_action(request, action, slide)
     return slide
 
-def handle_action(request, action, slide):
-    if action == 'key_update':
-        key_update(request)
-    if slide != None and slide != '' and slide != 'null':
-        if action == 'morphology_update':
-            morphology_update(request, slide)
-        if action == 'type_update':
-            type_update(request, slide)
-        if action == 'delete_wbc':
-            delete_wbc(request, slide)
-        if action == 'add_wbc':
-            add_wbc(request, slide)
-        if action == 'update_wbc':
-            update_wbc(request, slide)
-        if action == 'delete_slide':
-            delete_slide(slide)
-
-def update_wbc(request, slide):
-    img_id = request.GET["id"]
-    print(img_id)
-    this_type = WBCImg.objects.filter(slide=slide, imgID=img_id).get().type
-    delete_wbc(request, slide)
-    add_wbc(request, slide, wbc_type=this_type)
-
-def delete_slide(slide):
-    Slide.objects.filter(number=slide).delete()
-    WBCImg.objects.filter(slide=slide).delete()
-    shutil.rmtree(f"media/slide_{slide}")
-
-def add_wbc(request, slide, wbc_type="unsorted"):
-    img_id = request.GET["id"]
-    lat_lower = float(request.GET["lat_lower"])
-    lat_upper = float(request.GET["lat_upper"])
-    lng_lower = float(request.GET["lng_lower"])
-    lng_upper = float(request.GET["lng_upper"])
-    cf_str = Slide.objects.get(number=slide).coordinate_factors
-    coordinate_factors = string_to_coordinate_factors(cf_str)
-    add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper)
-    lng = (lng_upper+lng_lower)/2
-    lat = (lat_upper+lat_lower)/2
-    new_wbc = WBCImg(type=wbc_type, src=f'media/slide_{slide}/wbcs/{img_id}.png', slide=slide, imgID=img_id, lat=lat, lng=lng, lat_lower=lat_lower, lat_upper=lat_upper, lng_lower=lng_lower, lng_upper=lng_upper)
-    new_wbc.save()
-
-def delete_wbc(request, slide):
-    img_id = request.GET["id"]
-    item = WBCImg.objects.get(imgID=img_id, slide=slide)
-    item.delete()
-
-def morphology_update(request, slide):
-    morphology = request.GET["morphology"]
-    grade = request.GET["grade"]
-    item = Slide.objects.get(number=slide)
-    morphology_str = item.morphology
-    new_morphology_str = change_morphology_str(morphology_str, morphology, grade)
-    item.morphology = new_morphology_str
-    item.save()
-
-def type_update(request, slide):
-    img_id = request.GET["id"]
-    type = request.GET["type"]
-    item = WBCImg.objects.get(imgID=img_id, slide=slide)
-    item.type = type
-    item.save()
-
-def key_update(request):
-    key_bind = request.GET["key_bind"]
-    type = type = request.GET["type"]
-    slide = -1
-    item = WBCDiffConfig.objects.get(type=type)
-    item.key_bind = key_bind
-    item.save()
-
-def change_morphology_str(morphology_str, morphology, grade):
-    spot = morphology_str.find("|" + morphology + ":")
-    if spot == -1:
-        morphology_str += "|" + morphology + ":" + grade
-    else:
-        end = morphology_str.find("|", spot+1)
-        if end == -1:
-            end = len(morphology_str)
-        start = spot
-        morphology_str = morphology_str[:start] + "|" + morphology + ":" + grade + morphology_str[end:]
-    return morphology_str
-
-def get_morphology(morphology_data):
-    return_lst = []
-    morphology_lst = morphology_data.split("|")[1:]
-    for morphology in morphology_lst:
-        morphology_type, morphology_value = morphology.split(":")
-        return_lst.append([morphology_type, morphology_value])
-    return return_lst
+def field_view(request):
+    pass

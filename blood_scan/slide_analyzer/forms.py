@@ -2,7 +2,7 @@ from django import forms
 
 class UploadForm(forms.Form):
     slide = forms.IntegerField(label='Slide Number:')
-    file = forms.ImageField(label='File (Stiched Image):')
+    file = forms.FileField(label='File (Stiched Image):')
 
 class CaptureForm(forms.Form):
     slide = forms.IntegerField(label='Slide Number:')
