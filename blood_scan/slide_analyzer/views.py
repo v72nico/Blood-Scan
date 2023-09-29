@@ -4,7 +4,7 @@ import os, shutil
 import threading
 
 from slide_analyzer.models import *
-from slide_analyzer.utils.utils import WbcImageHandler, SlideCaptureHandler, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors, add_wbc_img
+from slide_analyzer.utils.image_utils import WbcImageHandler, SlideCaptureHandler, save_upload, calc_coordinate_factors, coordinate_factors_to_string, string_to_coordinate_factors
 from slide_analyzer.utils.tiling import Tiler
 from slide_analyzer.forms import UploadForm, CaptureForm
 
@@ -12,6 +12,13 @@ from slide_analyzer.utils.list_tools import get_slide_numbers, make_microscope_l
 from slide_analyzer.utils.db_manipulators import MicroscopeHandler, ActionHandler
 from slide_analyzer.utils.os_tools import make_slide_dirs
 
+ID_TILE_SIZE = 2464
+VIEW_TILE_SIZE = 256
+
+config = {}
+config['id_tile_size'] = ID_TILE_SIZE
+config['view_tile_size'] = VIEW_TILE_SIZE
+config['wd'] = os.getcwd()
 
 def home(request):
     """ Handles get requests for home page """
@@ -21,6 +28,7 @@ def home(request):
     return render(request, 'home.html', {'slides': slide_numbers})
 
 def status(request):
+    """ Handles get requests for status page """
     microscope_data = MicroscopeUse.objects.filter(in_use=True)
     microscopes = make_microscope_lst(microscope_data)
     return render(request, 'status.html', {'microscopes': microscopes})
@@ -34,13 +42,10 @@ def capture(request):
             wbc_count = form.cleaned_data['wbc_count']
             field_limit = form.cleaned_data['field_limit']
             duplicate_slides = Slide.objects.filter(number=slide)
-            MicroscopeHandler.make_microscope_data(microscope_ip, wbc_count, field_limit, slide)
             microscope_in_use = MicroscopeUse.objects.get(ip=microscope_ip)
-            if microscope_in_use.in_use == False:
+            if microscope_in_use.in_use != True:
                 if len(duplicate_slides) == 0:
-                    MicroscopeHandler.toggle_microscope_use(microscope_ip)
-                    t = threading.Thread(target=make_slide_data_capture, args=[slide, microscope_ip, wbc_count], daemon=True)
-                    t.start()
+                    start_capture_daemon(slide, microscope_ip, wbc_count, field_limit)
                 else:
                     form.errors[''] = "Error: Slide number already exists"
             else:
@@ -50,13 +55,19 @@ def capture(request):
         form = CaptureForm()
         return render(request, 'capture.html', {'form': form})
 
-def make_slide_data_capture(slide, microscope_ip, wbc_count, timeout=100):
+def start_capture_daemon(slide, microscope_ip, wbc_count, field_limit):
+    MicroscopeHandler.make_microscope_data(microscope_ip, wbc_count, field_limit, slide)
+    MicroscopeHandler.toggle_microscope_use(microscope_ip)
+    t = threading.Thread(target=capture_slide, args=[slide, microscope_ip, wbc_count, field_limit], daemon=True)
+    t.start()
+
+def capture_slide(slide, microscope_ip, wbc_count, field_limit):
     make_slide_dirs(slide)
     thisSlide = Slide(number=slide, max_zoom=0, coordinate_factors='blank')
     thisSlide.save()
     microscope = MicroscopeUse.objects.get(ip=microscope_ip)
     try:
-        CaptureHandler = SlideCaptureHandler(slide, microscope_ip, wbc_count, timeout)
+        CaptureHandler = SlideCaptureHandler(slide, microscope_ip, wbc_count, field_limit)
         while True:
             wbc_data_lst, wbc_counter, counter = CaptureHandler.next_capture()
             microscope.current_wbc = wbc_counter
@@ -65,7 +76,7 @@ def make_slide_data_capture(slide, microscope_ip, wbc_count, timeout=100):
             if wbc_data_lst == 'complete':
                 break
             for wbc_data in wbc_data_lst:
-                thisWBC = WBCImg(type="unsorted", slide=slide, imgID=int(wbc_data[0]), src=wbc_data[1], lat=0, lng=0, lng_lower=0, lat_lower=0, lng_upper=0, lat_upper=0)
+                thisWBC = g(type="unsorted", slide=slide, imgID=int(wbc_data[0]), src=wbc_data[1], lat=0, lng=0, lng_lower=0, lat_lower=0, lng_upper=0, lat_upper=0)
                 thisWBC.save()
         microscope.delete()
     except Exception as e:
@@ -92,9 +103,12 @@ def upload(request):
 def make_slide_data_upload(slide):
     """ Tile slide, save slide to database, identify wbcs and generate imgs and coordinates based on identifications """
     make_slide_dirs(slide)
-    view_tiler = Tiler('media/upload.png', slide, 256)
+    save_loc_view = config['wd']+f"/media/slide_{slide}/tiles"
+    view_tiler = Tiler('media/upload.png', slide, config['view_tile_size'], save_loc=save_loc_view)
     max_zoom, coordinate_factors_tiles = view_tiler.tile_image()
-    identify_tiler = Tiler('media/upload.png', slide, 2464, max_scale=0, save_loc='_id')
+
+    save_loc_id = config['wd']+f"/media/slide_{slide}/tiles_id"
+    identify_tiler = Tiler('media/upload.png', slide, config['id_tile_size'], max_scale=0, save_loc=save_loc_id)
     _, coordinate_factors_full_res = identify_tiler.tile_image()
     coordinate_factors = calc_coordinate_factors(coordinate_factors_tiles, coordinate_factors_full_res)
 
@@ -103,7 +117,8 @@ def make_slide_data_upload(slide):
     thisSlide = Slide(number=slide, max_zoom=max_zoom, coordinate_factors=cf_str)
     thisSlide.save()
 
-    wbc_image_handler = WbcImageHandler(slide, coordinate_factors, 2464, 256, '_id')
+    save_loc_wbc_id = config['wd']+f"/media/slide_{slide}"
+    wbc_image_handler = WbcImageHandler(coordinate_factors, config['id_tile_size'], config['view_tile_size'], save_loc_wbc_id, mode='start')
     wbc_data_lst = wbc_image_handler.generate_wbc_imgs_and_cords()
 
     for wbc_data in wbc_data_lst:
@@ -161,7 +176,7 @@ def handle_query(request):
     except:
         action = None
     if action != None:
-        ActionHandler().handle_action(request, action, slide)
+        ActionHandler(config).handle_action(request, action, slide)
     return slide
 
 def field_view(request):

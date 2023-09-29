@@ -15,7 +15,7 @@
   <script>
     var wbc_data = [];
     {% for _, id, type, lat, lng, lat_lower, lng_lower, lat_upper, lng_upper in wbc_imgs %}
-      wbc_data.push([{{ id }}, {{ lat }}, {{ lng }}, '{{ type }}', {{ lat_lower }}, {{ lng_lower }}, {{ lat_upper }}, {{ lng_upper }}, 0]);
+      wbc_data.push([{{ id }}, {{ lat }}, {{ lng }}, "{{ type }}", {{ lat_lower }}, {{ lng_lower }}, {{ lat_upper }}, {{ lng_upper }}, 0]);
     {% endfor %}
 
     var wbc_types = [];
@@ -365,7 +365,7 @@
   <div class=container>
     <div id="map">
       <script>
-        var map = L.map('map', {editable: true, crs: L.CRS.Simple}).setView([-128, 128], 3);
+        var map = L.map('map', {editable: true, crs: L.CRS.Simple}).setView([0, 0], 3);
         L.tileLayer('{% get_media_prefix %}slide_{{slide}}/tiles/{z}.{y}.{x}.png', {
         maxZoom: {{max_zoom}},
         minZoom: 0,

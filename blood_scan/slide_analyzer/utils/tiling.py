@@ -2,9 +2,8 @@ import cv2
 import numpy as np
 
 class Tiler():
-    def __init__(self, raw_img, slide, tile_size, max_scale=None, save_loc=''):
+    def __init__(self, raw_img, tile_size, max_scale=None, save_loc=''):
         self.original_img = cv2.imread(raw_img)
-        self.slide = slide
         self.tile_size = tile_size
         self.save_loc = save_loc
         if max_scale == None:
@@ -48,8 +47,8 @@ class Tiler():
         scale_0_xy = []
         cord_y_len = int(y_len/self.tile_size)+1
         cord_x_len = int(x_len/self.tile_size)+1
-        scale_0_xy.append(x_len/(self.tile_size*cord_x_len))
-        scale_0_xy.append(y_len/(self.tile_size*cord_y_len))
+        scale_0_xy.append((x_len+1)/(self.tile_size*cord_x_len))
+        scale_0_xy.append((y_len+1)/(self.tile_size*cord_y_len))
 
         return scale_0_xy
 
@@ -105,4 +104,4 @@ class Tiler():
             self.save_img(final_tile, y_len, x_len, layer)
 
     def save_img(self, tile, y, x, z):
-        cv2.imwrite(f'media/slide_{self.slide}/tiles{self.save_loc}/{z}.{y}.{x}.png', tile)
+        cv2.imwrite(f'{save_loc}/{z}.{y}.{x}.png', tile)

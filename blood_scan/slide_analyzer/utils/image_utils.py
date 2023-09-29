@@ -1,5 +1,7 @@
-import cv2
 import os
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2,40))
+
+import cv2
 import numpy
 from ultralytics import YOLO
 import openflexure_microscope_client as ofm_client
@@ -7,15 +9,16 @@ from slide_analyzer.utils.ofm_utils import capture_full_image
 from time import sleep
 
 class WbcImageHandler():
-    def __init__(self, slide, coordinate_factors, id_tile_size, view_tile_size, save_loc):
-        self.slide = slide
+    def __init__(self, coordinate_factors, id_tile_size, view_tile_size, save_loc, mode='done'):
         self.coordinate_factors = coordinate_factors
         self.id_tile_size = id_tile_size
         self.view_tile_size = view_tile_size
         self.save_loc = save_loc
-        imgs = get_tiles(self.slide, self.save_loc)
-        wbc_id = WbcIdentificationHandler(self.slide, save_loc)
-        self.identified_wbcs = wbc_id.identify_wbcs(imgs)
+        print(coordinate_factors, id_tile_size, view_tile_size, save_loc)
+        imgs = self.get_tiles()
+        if mode == "start":
+            wbc_id = WbcIdentificationHandler(self.save_loc)
+            self.identified_wbcs = wbc_id.identify_wbcs(imgs)
 
     def generate_wbc_imgs_and_cords(self):
         #TODO find wbcs split between images
@@ -29,7 +32,7 @@ class WbcImageHandler():
                     cropped_img = self.generate_wbc_img(wbc_xyxy, wbc_data[1], counter)
                     self.save_img(cropped_img, counter)
                     coordinates = self.get_wbc_coordinates(wbc_xyxy, wbc_data[1])
-                    final_wbcs.append([f'media/slide_{self.slide}/wbcs/{counter}.png', counter, coordinates])
+                    final_wbcs.append([f'{self.save_loc}/wbcs/{counter}.png', counter, coordinates])
                     counter += 1
         return final_wbcs
 
@@ -47,7 +50,7 @@ class WbcImageHandler():
         upper_y_bound = int(wbc_xyxy[3]+margin)
         if upper_y_bound > self.id_tile_size:
             upper_y_bound = self.id_tile_size
-        img = cv2.imread(f'media/slide_{self.slide}/tiles{self.save_loc}/{img_src}')
+        img = cv2.imread(f'{self.save_loc}/tiles_id/{img_src}')
         cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
         return cropped_img
 
@@ -60,16 +63,16 @@ class WbcImageHandler():
         y_coordinate = (upper_y_bound+lower_y_bound)/2
 
         these_coordinates = src.split('.')
-        this_y = int(these_coordinates[1])
-        this_x = int(these_coordinates[2])
+        y_tile = int(these_coordinates[1])
+        x_tile = int(these_coordinates[2])
 
         #basically % way across id image is cords * factor which is ratio of percent of image taken up by real stuff * tile size to go from percentage to acctual coordinate
-        x = ((this_x+(x_coordinate/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
-        y = -((this_y+(y_coordinate/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
-        f_lower_x_bound = ((this_x+(lower_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
-        f_lower_y_bound = -((this_y+(lower_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
-        f_upper_x_bound = ((this_x+(upper_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
-        f_upper_y_bound = -((this_y+(upper_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
+        x = ((x_tile+(x_coordinate/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        y = -((y_tile+(y_coordinate/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
+        f_lower_x_bound = ((x_tile+(lower_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        f_lower_y_bound = -((y_tile+(lower_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
+        f_upper_x_bound = ((x_tile+(upper_x_bound/self.id_tile_size))/self.coordinate_factors[0][0])*self.coordinate_factors[1][0]*self.view_tile_size
+        f_upper_y_bound = -((y_tile+(upper_y_bound/self.id_tile_size))/self.coordinate_factors[0][1])*self.coordinate_factors[1][1]*self.view_tile_size
 
         return [y, x, f_lower_x_bound, f_lower_y_bound, f_upper_x_bound, f_upper_y_bound]
 
@@ -82,11 +85,46 @@ class WbcImageHandler():
         return wbc_xyxy
 
     def save_img(self, img, counter):
-        cv2.imwrite(f'media/slide_{self.slide}/wbcs/{counter}.png', img)
+        cv2.imwrite(f'{self.save_loc}/wbcs/{counter}.png', img)
+
+    def add_wbc_img(self, img_id, lat_lower, lat_upper, lng_lower, lng_upper):
+        lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, img_x, img_y = self.get_wbc_bounds(self.coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, self.id_tile_size, self.view_tile_size)
+        img = cv2.imread(f'{self.save_loc}/tiles_id/0.{img_y}.{img_x}.png')
+        cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
+        cv2.imwrite(f'{self.save_loc}/wbcs/{img_id}.png', cropped_img)
+
+    def get_wbc_bounds(self, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, tile_size, tile_size_2):
+        #TODO create images across id tiles
+        lower_x_bound = ((lng_upper*tile_size)*coordinate_factors[0][0])/coordinate_factors[1][0]/tile_size_2
+        lower_y_bound = -((lat_lower*tile_size)*coordinate_factors[0][1])/coordinate_factors[1][1]/tile_size_2
+        upper_x_bound = lng_lower/tile_size_2*tile_size*coordinate_factors[0][0]/coordinate_factors[1][0]
+        upper_y_bound = -((lat_upper*tile_size)*coordinate_factors[0][1])/coordinate_factors[1][1]/tile_size_2
+
+        x_tile = int(upper_x_bound/tile_size)
+        upper_x_bound = int(upper_x_bound-x_tile*tile_size)
+        x_tile = int(lower_x_bound/tile_size)
+        lower_x_bound = int(lower_x_bound-x_tile*tile_size)
+        if lower_x_bound > upper_x_bound:
+            lower_x_bound = 0
+
+        y_tile = int(upper_y_bound/tile_size)
+        upper_y_bound = int(upper_y_bound-y_tile*tile_size)
+        y_tile = int(lower_y_bound/tile_size)
+        lower_y_bound = int(lower_y_bound-y_tile*tile_size)
+        if lower_y_bound > upper_y_bound:
+            lower_y_bound = 0
+
+        return lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, x_tile, y_tile
+
+    def get_tiles(self, zoom_target=0):
+        identify_tiles = []
+        for tile in os.listdir(f'{self.save_loc}/tiles_id'):
+            if tile[:1] == str(zoom_target):
+                identify_tiles.append(tile)
+        return identify_tiles
 
 class WbcIdentificationHandler():
-    def __init__(self, slide, save_loc):
-        self.slide = slide
+    def __init__(self, save_loc):
         self.save_loc = save_loc
 
     def identify_wbcs(self, imgs, confidence=0.3):
@@ -94,7 +132,7 @@ class WbcIdentificationHandler():
         identified_wbcs = []
         model = YOLO('slide_analyzer/static/best.pt')
         for img in imgs:
-            results = model(f'media/slide_{self.slide}/tiles{self.save_loc}/{img}')
+            results = model(f'{save_loc}/tiles_id/{img}')
             boxes = []
             for box in results[0].boxes:
                 if box.conf > confidence:
@@ -242,37 +280,6 @@ class SlideCaptureHandler():
 
     def save_img(self, img, counter):
         cv2.imwrite(f'media/slide_{self.slide}/wbcs/{counter}.png', img)
-
-def add_wbc_img(slide, img_id, coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size=2464, view_tile_size=256):
-    lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y = get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, id_tile_size, view_tile_size)
-    img = cv2.imread(f'media/slide_{slide}/tiles_id/0.{this_y}.{this_x}.png')
-    cropped_img = img[lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
-    cv2.imwrite(f'media/slide_{slide}/wbcs/{img_id}.png', cropped_img)
-
-def get_wbc_bounds(coordinate_factors, lat_lower, lat_upper, lng_lower, lng_upper, tile_size, tile_size_2):
-    #TODO create images across id tiles
-    lower_x_bound = int(((lng_upper*tile_size)*coordinate_factors[0][0])/coordinate_factors[1][0]/tile_size_2)
-    lower_y_bound = int(-((lat_lower*tile_size)*coordinate_factors[0][1])/coordinate_factors[1][1]/tile_size_2)
-    upper_x_bound = int(((lng_lower*tile_size)*coordinate_factors[0][0])/coordinate_factors[1][0]/tile_size_2)
-    upper_y_bound = int(-((lat_upper*tile_size)*coordinate_factors[0][1])/coordinate_factors[1][1]/tile_size_2)
-    this_x = int(upper_x_bound/tile_size)
-    upper_x_bound = upper_x_bound%tile_size
-    lower_x_bound = lower_x_bound%tile_size
-    if lower_x_bound > upper_x_bound:
-        lower_x_bound = 0
-    this_y = int(upper_y_bound/tile_size)
-    upper_y_bound = upper_y_bound%tile_size
-    lower_y_bound = lower_y_bound%tile_size
-    if lower_y_bound > upper_y_bound:
-        lower_y_bound = 0
-    return lower_x_bound, lower_y_bound, upper_x_bound, upper_y_bound, this_x, this_y
-
-def get_tiles(slide, save_loc, zoom_target=0):
-    identify_tiles = []
-    for tile in os.listdir(f'media/slide_{slide}/tiles{save_loc}'):
-        if tile[:1] == str(zoom_target):
-            identify_tiles.append(tile)
-    return identify_tiles
 
 def save_upload(f):
     with open('media/upload.png', 'wb+') as d:

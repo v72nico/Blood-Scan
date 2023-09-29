@@ -1,4 +1,5 @@
 import os
+import shutil
 
 def make_slide_dirs(slide):
     ''' Create directories for slide data '''
