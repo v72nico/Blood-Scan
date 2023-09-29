@@ -1,5 +1,7 @@
 # BLOOD SCAN - Differential and Morphology Analysis
 
+PUBLIC DEMO: https://slides.lat
+
 ##### Features:
 -Slide scan tiling \
 -YOLOv8 WBC finder \
